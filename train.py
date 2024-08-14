@@ -4,8 +4,12 @@ os.environ["HF_DATASETS_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
-from submodule_patches import patch_dataloader
-patch_dataloader()
+import sys
+sys.path.append("ai-toolkit")
+sys.path.append("LLaVA")
+
+from submodule_patches import patch_submodules
+patch_submodules()
 
 import sys
 import torch
@@ -15,9 +19,6 @@ import subprocess
 from zipfile import ZipFile
 from cog import BaseModel, Input, Path, Secret
 from huggingface_hub import HfApi
-
-sys.path.append("ai-toolkit")
-sys.path.append("LLaVA")
 
 from jobs import ExtensionJob
 from toolkit.config import get_config
