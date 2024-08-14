@@ -79,14 +79,15 @@ class WeightsDownloadCache:
         """
         path = self.weights_path(url)
 
-        if path in self.lru_paths:
-            # here we remove to re-add to the end of the LRU (marking it as recently used)
+        if os.path.exists(path):
+            print(f"Weights already exist at {path}")
             self._hits += 1
-            self.lru_paths.remove(path)
         else:
             self._misses += 1
             self.download_weights(url, path)
 
+        if path in self.lru_paths:
+            self.lru_paths.remove(path)
         self.lru_paths.append(path)  # Add file to end of cache
         return path
 
