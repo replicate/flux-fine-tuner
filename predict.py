@@ -38,11 +38,11 @@ def download_weights(url, dest):
 
 
 class Predictor(BasePredictor):
-    def load_trained_weights(self, weights: Path | str, pipe):
+    def load_trained_weights(self, weights: Path | str, pipe: FluxPipeline, lora_scale: float):
         if isinstance(weights, str) and weights.startswith("data:"):
             # Handle data URL
             print("Loading LoRA weights from data URL")
-            header, encoded = weights.split(",", 1)
+            _, encoded = weights.split(",", 1)
             data = base64.b64decode(encoded)
             with tempfile.TemporaryDirectory() as temp_dir:
                 with tarfile.open(fileobj=BytesIO(data), mode="r:*") as tar:
@@ -51,6 +51,7 @@ class Predictor(BasePredictor):
                     temp_dir, "output/flux_train_replicate/lora.safetensors"
                 )
                 pipe.load_lora_weights(lora_path)
+                pipe.fuse_lora(lora_scale=lora_scale)
         else:
             # Handle local path
             print(f"Loading LoRA weights from {weights}")
@@ -126,6 +127,7 @@ class Predictor(BasePredictor):
             le=4,
             default=1,
         ),
+        lora_scale: float = Input(description="Determines how strongly the LoRA should be applied.", default=0.7),
         num_inference_steps: int = Input(
             description="Number of inference steps",
             ge=1,
@@ -167,7 +169,7 @@ class Predictor(BasePredictor):
         print(f"Using seed: {seed}")
 
         if replicate_weights:
-            self.load_trained_weights(replicate_weights, self.dev_pipe)
+            self.load_trained_weights(replicate_weights, self.dev_pipe, lora_scale)
 
         width, height = self.aspect_ratio_to_width_height(aspect_ratio)
         max_sequence_length = 512
