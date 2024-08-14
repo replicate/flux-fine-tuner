@@ -170,7 +170,7 @@ class Captioner:
                 do_sample=True,
                 temperature=0.2,
                 top_p=1.0,
-                max_new_tokens=1024,
+                max_new_tokens=512,
                 use_cache=True,
             )
             output = self.tokenizer.batch_decode(output_ids, skip_special_tokens=True)[
