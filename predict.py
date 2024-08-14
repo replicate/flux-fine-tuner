@@ -158,6 +158,10 @@ class Predictor(BasePredictor):
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
             default=None,
         ),
+        lora_scale: float = Input(
+            description="Scale for the LoRA weights",
+            ge=0,le=1, default=0.8,
+        ),
         disable_safety_checker: bool = Input(
             description="Disable safety checker for generated images.",
             default=False,

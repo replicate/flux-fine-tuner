@@ -80,7 +80,7 @@ class WeightsDownloadCache:
         path = self.weights_path(url)
 
         if os.path.exists(path):
-            print(f"Weights already exist at {path}")
+            print(f"Weights already exist at local path")
             self._hits += 1
         else:
             self._misses += 1
