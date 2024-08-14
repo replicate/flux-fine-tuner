@@ -172,14 +172,17 @@ def train(
     os.system(f"tar -cvf {output_zip_path} {lora_dir}")
 
     if hf_token is not None and repo_id is not None:
-        os.system(f"cp lora-license.md {lora_dir}/README.md")
-        api = HfApi()
-        api.upload_folder(
-            repo_id=repo_id,
-            folder_path=lora_dir,
-            repo_type="model",
-            use_auth_token=hf_token.get_secret_value(),
-        )
+        try:
+            os.system(f"cp lora-license.md {lora_dir}/README.md")
+            api = HfApi()
+            api.upload_folder(
+                repo_id=repo_id,
+                folder_path=lora_dir,
+                repo_type="model",
+                use_auth_token=hf_token.get_secret_value(),
+            )
+        except Exception as e:
+            print(f"Error uploading to Hugging Face: {str(e)}")
 
     return TrainingOutput(weights=Path(output_zip_path))
 
