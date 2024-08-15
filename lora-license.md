@@ -6,6 +6,8 @@ language:
 - en
 tags:
 - flux
+- diffusers
+- lora
 base_model: "black-forest-labs/FLUX.1-dev"
 pipeline_tag: text-to-image
 ---
