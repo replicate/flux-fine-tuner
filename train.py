@@ -66,11 +66,11 @@ def train(
         description="Image resolutions for training", default="512,768,1024"
     ),
     hf_repo_id: str = Input(
-        description="HuggingFace repo ID if you'd like to upload the trained LoRA to HF, e.g. lucataco/flux-dev-lora.",
+        description="Hugging Face repo ID if you'd like to upload the trained LoRA to HF, e.g. lucataco/flux-dev-lora.",
         default=None,
     ),
     hf_token: Secret = Input(
-        description="HuggingFace token if you'd like to upload the trained LoRA to HuggingFace.",
+        description="Hugging Face token if you'd like to upload the trained LoRA to Hugging Face.",
         default=None,
     ),
 ) -> TrainingOutput:
