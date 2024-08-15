@@ -53,7 +53,7 @@ class Predictor(BasePredictor):
                 pipe.fuse_lora(lora_scale=lora_scale)
         else:
             # Handle local path
-            print(f"Loading LoRA weights from {weights}")
+            print("Loading LoRA weights")
             local_weights_cache = self.weights_cache.ensure(str(weights))
             lora_path = os.path.join(
                 local_weights_cache, "output/flux_train_replicate/lora.safetensors"
