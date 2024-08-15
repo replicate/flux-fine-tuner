@@ -47,11 +47,11 @@ def train(
         description="Automatically caption images using Llava v1.5 13B", default=True
     ),
     autocaption_prefix: str = Input(
-        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix. Prefixes help set the right concept for your captions. The captioner also uses this prefix as context when captioning.",
+        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
         default=None,
     ),
     autocaption_suffix: str = Input(
-        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use the suffix as context.",
+        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use this suffix as context.",
         default=None,
     ),
     steps: int = Input(
@@ -62,9 +62,6 @@ def train(
     ),
     learning_rate: float = Input(description="Learning rate", default=4e-4),
     batch_size: int = Input(description="Batch size", default=1),
-    resolution: str = Input(
-        description="Image resolutions for training", default="512,768,1024"
-    ),
     hf_repo_id: str = Input(
         description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora.",
         default=None,
@@ -102,9 +99,7 @@ def train(
                                 "caption_dropout_rate": 0.05,
                                 "shuffle_tokens": False,
                                 "cache_latents_to_disk": True,
-                                "resolution": [
-                                    int(res) for res in resolution.split(",")
-                                ],
+                                "resolution": [512, 768, 1024],
                             }
                         ],
                         "train": {
