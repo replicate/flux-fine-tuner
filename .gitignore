@@ -179,6 +179,7 @@ cython_debug/
 *.zip
 
 FLUX.1-dev/
+FLUX.1-schnell/
 liuhaotian/
 openai/
 input_images/

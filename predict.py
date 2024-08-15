@@ -200,9 +200,11 @@ class Predictor(BasePredictor):
             flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
         if model == "dev":
             print("Using dev model")
+            max_sequence_length = 512
             pipe = self.dev_pipe
         else:
             print("Using schnell model")
+            max_sequence_length = 256
             pipe = self.schnell_pipe
             guidance_scale = 0
 
