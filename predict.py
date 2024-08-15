@@ -55,7 +55,7 @@ class Predictor(BasePredictor):
         else:
             # Handle local path
             print(f"Loading LoRA weights from {weights}")
-            local_weights_cache = WeightsDownloadCache().ensure(str(weights))
+            local_weights_cache = self.weights_cache.ensure(str(weights))
             lora_path = os.path.join(
                 local_weights_cache, "output/flux_train_replicate/lora.safetensors"
             )
@@ -68,6 +68,9 @@ class Predictor(BasePredictor):
         start = time.time()
         # Dont pull weights
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+        self.weights_cache = WeightsDownloadCache()
+
         print("Loading safety checker...")
         if not os.path.exists(SAFETY_CACHE):
             download_weights(SAFETY_URL, SAFETY_CACHE)
