@@ -14,7 +14,7 @@ patch_submodules()
 
 import sys
 import torch
-from typing import OrderedDict
+from typing import OrderedDict, Optional
 import shutil
 import subprocess
 from zipfile import ZipFile
@@ -170,7 +170,8 @@ def train(
 
     if hf_token is not None and hf_repo_id is not None:
         try:
-            os.system(f"cp lora-license.md {lora_dir}/README.md")
+            handle_hf_readme(lora_dir, hf_repo_id, trigger_word)
+            print(f"Uploading to Hugging Face: {hf_repo_id}")
             api = HfApi()
             api.upload_folder(
                 repo_id=hf_repo_id,
@@ -182,6 +183,39 @@ def train(
             print(f"Error uploading to Hugging Face: {str(e)}")
 
     return TrainingOutput(weights=Path(output_zip_path))
+
+
+def handle_hf_readme(lora_dir: Path, hf_repo_id: str, trigger_word: Optional[str]):
+    os.system(f"cp lora-license.md {lora_dir}/README.md")
+
+    with open(f"{lora_dir}/README.md", "r") as f:
+        content = f.read()
+
+    content = content.replace("[hf_repo_id]", hf_repo_id)
+
+    repo_parts = hf_repo_id.split("/")
+    if len(repo_parts) > 1:
+        title = repo_parts[1].replace("-", " ").title()
+        content = content.replace("[title]", title)
+    else:
+        content = content.replace("[title]", hf_repo_id)
+
+    if trigger_word:
+        content = content.replace(
+            "[trigger_section]",
+            f"\n## Trigger words\nYou should use `{trigger_word}` to trigger the image generation.\n",
+        )
+        content = content.replace(
+            "[instance_prompt]", f"instance_prompt: {trigger_word}"
+        )
+    else:
+        content = content.replace("[trigger_section]", "")
+        content = content.replace("[instance_prompt]", "")
+
+    print(content)
+
+    with open(f"{lora_dir}/README.md", "w") as f:
+        f.write(content)
 
 
 def extract_zip(input_images: Path, input_dir: Path):
