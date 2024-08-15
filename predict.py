@@ -130,7 +130,7 @@ class Predictor(BasePredictor):
             le=4,
             default=1,
         ),
-        lora_scale: float = Input(description="Determines how strongly the LoRA should be applied.", default=0.7),
+        lora_scale: float = Input(description="Determines how strongly the LoRA should be applied. Sane results between 0 and 1.", default=1.0, le=2.0, ge=-1.0),
         num_inference_steps: int = Input(
             description="Number of inference steps",
             ge=1,
@@ -182,6 +182,8 @@ class Predictor(BasePredictor):
         print("txt2img mode")
         flux_kwargs["width"] = width
         flux_kwargs["height"] = height
+        if replicate_weights:
+            flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
         pipe = self.dev_pipe
 
         generator = torch.Generator("cuda").manual_seed(seed)
