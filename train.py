@@ -51,7 +51,7 @@ def train(
         default=None,
     ),
     autocaption_suffix: str = Input(
-        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘… in the style of TOK’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use the suffix as context.",
+        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use the suffix as context.",
         default=None,
     ),
     steps: int = Input(
