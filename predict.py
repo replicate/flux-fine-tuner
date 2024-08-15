@@ -1,6 +1,5 @@
 from cog import BasePredictor, Input, Path
 import os
-import re
 import time
 import torch
 import subprocess
@@ -10,9 +9,7 @@ import tempfile
 import tarfile
 from io import BytesIO
 import numpy as np
-from PIL import Image
 from diffusers import FluxPipeline
-from safetensors.torch import load_file
 from weights import WeightsDownloadCache
 from transformers import CLIPImageProcessor
 from diffusers.pipelines.stable_diffusion.safety_checker import (
@@ -23,7 +20,7 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
 MODEL_URL_DEV = (
     "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
 )
-# MODEL_URL_SCHNELL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-schnell/model.tar"
+MODEL_URL_SCHNELL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-schnell/files.tar"
 SAFETY_CACHE = "safety-cache"
 FEATURE_EXTRACTOR = "/src/feature-extractor"
 SAFETY_URL = "https://weights.replicate.delivery/default/sdxl/safety-1.0.tar"
@@ -38,7 +35,9 @@ def download_weights(url, dest):
 
 
 class Predictor(BasePredictor):
-    def load_trained_weights(self, weights: Path | str, pipe: FluxPipeline, lora_scale: float):
+    def load_trained_weights(
+        self, weights: Path | str, pipe: FluxPipeline, lora_scale: float
+    ):
         if isinstance(weights, str) and weights.startswith("data:"):
             # Handle data URL
             print("Loading LoRA weights from data URL")
@@ -87,6 +86,14 @@ class Predictor(BasePredictor):
             torch_dtype=torch.bfloat16,
         ).to("cuda")
 
+        print("Loading Flux schnell pipeline")
+        if not os.path.exists("FLUX.1-schnell"):
+            download_weights(MODEL_URL_SCHNELL, ".")
+        self.schnell_pipe = FluxPipeline.from_pretrained(
+            "FLUX.1-schnell",
+            torch_dtype=torch.bfloat16,
+        ).to("cuda")
+
         print("setup took: ", time.time() - start)
 
     @torch.amp.autocast("cuda")
@@ -130,12 +137,22 @@ class Predictor(BasePredictor):
             le=4,
             default=1,
         ),
-        lora_scale: float = Input(description="Determines how strongly the LoRA should be applied. Sane results between 0 and 1.", default=1.0, le=2.0, ge=-1.0),
+        lora_scale: float = Input(
+            description="Determines how strongly the LoRA should be applied. Sane results between 0 and 1.",
+            default=1.0,
+            le=2.0,
+            ge=-1.0,
+        ),
         num_inference_steps: int = Input(
             description="Number of inference steps",
             ge=1,
             le=50,
             default=28,
+        ),
+        model: str = Input(
+            description="Which model to run inferences with. The dev model needs around 28 steps but the schnell model only needs around 4 steps.",
+            choices=["dev", "schnell"],
+            default="dev",
         ),
         guidance_scale: float = Input(
             description="Guidance scale for the diffusion process",
@@ -171,9 +188,6 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
-        if replicate_weights:
-            self.load_trained_weights(replicate_weights, self.dev_pipe, lora_scale)
-
         width, height = self.aspect_ratio_to_width_height(aspect_ratio)
         max_sequence_length = 512
 
@@ -184,7 +198,16 @@ class Predictor(BasePredictor):
         flux_kwargs["height"] = height
         if replicate_weights:
             flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
-        pipe = self.dev_pipe
+        if model == "dev":
+            print("Using dev model")
+            pipe = self.dev_pipe
+        else:
+            print("Using schnell model")
+            pipe = self.schnell_pipe
+            guidance_scale = 0
+
+        if replicate_weights:
+            self.load_trained_weights(replicate_weights, pipe, lora_scale)
 
         generator = torch.Generator("cuda").manual_seed(seed)
 
@@ -200,7 +223,7 @@ class Predictor(BasePredictor):
         output = pipe(**common_args, **flux_kwargs)
 
         if replicate_weights:
-            self.dev_pipe.unload_lora_weights()
+            pipe.unload_lora_weights()
 
         if not disable_safety_checker:
             _, has_nsfw_content = self.run_safety_checker(output.images)
