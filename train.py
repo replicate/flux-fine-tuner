@@ -47,7 +47,7 @@ def train(
         description="Automatically caption images using Llava v1.5 13B", default=True
     ),
     autocaption_prefix: str = Input(
-        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK …’. You can include your trigger word in the prefix. Prefixes help set the right concept for your captions. The captioner also uses this prefix as context when captioning.",
+        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix. Prefixes help set the right concept for your captions. The captioner also uses this prefix as context when captioning.",
         default=None,
     ),
     autocaption_suffix: str = Input(
