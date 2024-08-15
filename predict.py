@@ -184,7 +184,7 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
-        if seed is None:
+        if seed is None or seed < 0:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
