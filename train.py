@@ -1,14 +1,15 @@
 import os
 
-os.environ["HF_DATASETS_OFFLINE"] = "1"
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 
 import sys
+
 sys.path.append("ai-toolkit")
 sys.path.append("LLaVA")
 
 from submodule_patches import patch_submodules
+
 patch_submodules()
 
 import sys
@@ -64,7 +65,7 @@ def train(
     resolution: str = Input(
         description="Image resolutions for training", default="512,768,1024"
     ),
-    repo_id: str = Input(
+    hf_repo_id: str = Input(
         description="HuggingFace repo ID if you'd like to upload the trained LoRA to HF, e.g. lucataco/flux-dev-lora.",
         default=None,
     ),
@@ -172,12 +173,12 @@ def train(
     output_zip_path = "/tmp/trained_model.tar"
     os.system(f"tar -cvf {output_zip_path} {lora_dir}")
 
-    if hf_token is not None and repo_id is not None:
+    if hf_token is not None and hf_repo_id is not None:
         try:
             os.system(f"cp lora-license.md {lora_dir}/README.md")
             api = HfApi()
             api.upload_folder(
-                repo_id=repo_id,
+                repo_id=hf_repo_id,
                 folder_path=lora_dir,
                 repo_type="model",
                 use_auth_token=hf_token.get_secret_value(),
