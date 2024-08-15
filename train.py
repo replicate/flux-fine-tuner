@@ -40,18 +40,18 @@ def train(
         description="A zip file containing the images that will be used for training. A minimum of 10 images is recommended. If you include captions, they must be one txt file per image, e.g. my-photo.jpg should have a caption file named my-photo.txt. If you don't include captions you can use autocaptioning."
     ),
     trigger_word: str = Input(
-        description="Trigger words can be included in captions to make it easier to trigger lora styles during inference. For example 'a TOK photo of'. If a trigger word is given, it'll be included in image captions if it does not already exist",
-        default=None,
+        description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn’t a real word, like TOK or something related to what’s being trained, like CYBRPNK. This trigger word will be associated with all images during training. When using your lora, you can use this word to help activate it.",
+        default="TOK",
     ),
     autocaption: bool = Input(
         description="Automatically caption images using Llava v1.5 13B", default=True
     ),
     autocaption_prefix: str = Input(
-        description="Optional prefix for your captions, for example 'a photo of TOK, '",
+        description="Optional: Text you want at the beginning of all your generated captions, for example ‘a photo of TOK …’. You can include your trigger word in the prefix. Prefixes will help set the right concept for your captions. The captioner will use this prefix as context when captioning.",
         default=None,
     ),
     autocaption_suffix: str = Input(
-        description="Optional suffix for your captions, for example 'in the style of TOK'",
+        description="Optional: Text you want to appear at the end of all your generated captions, for example ‘… in the style of TOK’.",
         default=None,
     ),
     steps: int = Input(
