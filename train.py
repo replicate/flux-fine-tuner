@@ -34,7 +34,6 @@ class TrainingOutput(BaseModel):
     weights: Path
 
 
-# Run in lucataco/sandbox2
 def train(
     input_images: Path = Input(
         description="A zip file containing the images that will be used for training. We recommend a minimum of 10 images. If you include captions, include them as one .txt file per image, e.g. my-photo.jpg should have a caption file named my-photo.txt. If you don't include captions, you can use autocaptioning (enabled by default)."
@@ -60,8 +59,13 @@ def train(
         le=4000,
         default=1000,
     ),
-    learning_rate: float = Input(description="Learning rate", default=4e-4),
-    batch_size: int = Input(description="Batch size", default=1),
+    learning_rate: float = Input(
+        description="Learning rate, if you’re new to training you probably don’t need to change this.",
+        default=4e-4,
+    ),
+    batch_size: int = Input(
+        description="Batch size, you can leave this as 1", default=1
+    ),
     hf_repo_id: str = Input(
         description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora.",
         default=None,
@@ -72,6 +76,18 @@ def train(
     ),
 ) -> TrainingOutput:
     clean_up()
+    output_path = "/tmp/trained_model.tar"
+
+    # Shortcut training and host a pretrained LoRA from Hugging Face
+    # This has the advantage of putting the LoRA onto the hotswap base
+    if (
+        input_images.startswith("https://huggingface.co")
+        and ".safetensors" in input_images
+    ):
+        download_huggingface_lora(input_images)
+        os.system(f"tar -cvf {output_path} /tmp/flux_train_replicate")
+        return TrainingOutput(weights=Path(output_path))
+
     download_weights()
     extract_zip(input_images, INPUT_DIR)
 
@@ -165,8 +181,7 @@ def train(
     if optimizer_file.exists():
         os.remove(optimizer_file)
 
-    output_zip_path = "/tmp/trained_model.tar"
-    os.system(f"tar -cvf {output_zip_path} {lora_dir}")
+    os.system(f"tar -cvf {output_path} {lora_dir}")
 
     if hf_token is not None and hf_repo_id is not None:
         try:
@@ -182,7 +197,7 @@ def train(
         except Exception as e:
             print(f"Error uploading to Hugging Face: {str(e)}")
 
-    return TrainingOutput(weights=Path(output_zip_path))
+    return TrainingOutput(weights=Path(output_path))
 
 
 def handle_hf_readme(lora_dir: Path, hf_repo_id: str, trigger_word: Optional[str]):
@@ -241,6 +256,22 @@ def clean_up():
 
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
+
+
+def download_huggingface_lora(hf_lora_url: str):
+    lora_path = "/tmp/flux_train_replicate/lora.safetensors"
+    if os.path.exists(lora_path):
+        os.remove(lora_path)
+
+    print(f"Downloading {hf_lora_url} to {lora_path}")
+    subprocess.check_output(
+        [
+            "pget",
+            "-f",
+            hf_lora_url,
+            lora_path,
+        ]
+    )
 
 
 def download_weights():
