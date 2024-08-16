@@ -157,14 +157,16 @@ class Predictor(BasePredictor):
             default="1:1",
         ),
         width: int = Input(
-            description="Width of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)",
+            description="Width of the generated image. Optional, only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)",
             ge=256,
             le=1440,
+            default=None,
         ),
         height: int = Input(
-            description="Height of the generated image. Only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)",
+            description="Height of the generated image. Optional, only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)",
             ge=256,
             le=1440,
+            default=None,
         ),
         num_outputs: int = Input(
             description="Number of images to output.",
@@ -224,6 +226,8 @@ class Predictor(BasePredictor):
         print(f"Using seed: {seed}")
 
         if aspect_ratio == "custom":
+            if width is None or height is None:
+                raise ValueError("width and height must be defined if aspect ratio is 'custom'")
             width = make_multiple_of_16(width)
             height = make_multiple_of_16(height)
         else:
