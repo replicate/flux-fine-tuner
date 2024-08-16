@@ -61,7 +61,7 @@ class Predictor(BasePredictor):
             print("Loading LoRA weights")
             weights = str(weights)
             if weights == self.get_loaded_weights_string(pipe):
-                print("weights already loaded, returning")
+                print("weights already loaded!")
                 return
             pipe.unload_lora_weights()
 
