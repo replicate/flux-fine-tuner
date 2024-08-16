@@ -112,10 +112,10 @@ class Predictor(BasePredictor):
         print("setup took: ", time.time() - start)
 
     def get_loaded_weights_string(self, pipe: FluxPipeline):
-        return self.dev_weights if pipe.transformer.guidance_embeds else self.schnell_weights
+        return self.dev_weights if pipe.transformer.config.guidance_embeds else self.schnell_weights
 
     def set_loaded_weights_string(self, pipe: FluxPipeline, new_weights: str):
-        if pipe.transformer.guidance_embeds:
+        if pipe.transformer.config.guidance_embeds:
             self.dev_weights = new_weights
         else:
             self.schnell_weights = new_weights
