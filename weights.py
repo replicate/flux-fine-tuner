@@ -112,7 +112,7 @@ class WeightsDownloadCache:
         while not self._has_enough_space() and len(self.lru_paths) > 0:
             self._remove_least_recent()
 
-        print(f"Downloading weights: {url}")
+        print("Downloading weights")
 
         st = time.time()
         # maybe retry with the real url if this doesn't work
