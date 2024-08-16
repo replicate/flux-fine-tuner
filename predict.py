@@ -41,6 +41,10 @@ class Predictor(BasePredictor):
         if isinstance(weights, str) and weights.startswith("data:"):
             # Handle data URL
             print("Loading LoRA weights from data URL")
+
+            # not caching data URIs, can revisit if this becomes common
+            pipe.unload_lora_weights()
+            self.set_loaded_weights_string(pipe, "loading")
             _, encoded = weights.split(",", 1)
             data = base64.b64decode(encoded)
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -51,14 +55,23 @@ class Predictor(BasePredictor):
                 )
                 pipe.load_lora_weights(lora_path)
                 pipe.fuse_lora(lora_scale=lora_scale)
+                self.set_loaded_weights_string(pipe, "data_uri")
         else:
             # Handle local path
             print("Loading LoRA weights")
-            local_weights_cache = self.weights_cache.ensure(str(weights))
+            weights = str(weights)
+            if weights == self.get_loaded_weights_string(pipe):
+                print("weights already loaded, returning")
+                return
+            pipe.unload_lora_weights()
+
+            self.set_loaded_weights_string(pipe, "loading")
+            local_weights_cache = self.weights_cache.ensure(weights)
             lora_path = os.path.join(
                 local_weights_cache, "output/flux_train_replicate/lora.safetensors"
             )
             pipe.load_lora_weights(lora_path)
+            self.set_loaded_weights_string(pipe, weights)
 
         print("LoRA weights loaded successfully")
 
@@ -85,6 +98,7 @@ class Predictor(BasePredictor):
             "FLUX.1-dev",
             torch_dtype=torch.bfloat16,
         ).to("cuda")
+        self.dev_weights = ""
 
         print("Loading Flux schnell pipeline")
         if not os.path.exists("FLUX.1-schnell"):
@@ -93,8 +107,19 @@ class Predictor(BasePredictor):
             "FLUX.1-schnell",
             torch_dtype=torch.bfloat16,
         ).to("cuda")
+        self.schnell_weights = ""
 
         print("setup took: ", time.time() - start)
+
+    def get_loaded_weights_string(self, pipe: FluxPipeline):
+        return self.dev_weights if pipe.transformer.guidance_embeds else self.schnell_weights
+
+    def set_loaded_weights_string(self, pipe: FluxPipeline, new_weights: str):
+        if pipe.transformer.guidance_embeds:
+            self.dev_weights = new_weights
+        else:
+            self.schnell_weights = new_weights
+        return
 
     @torch.amp.autocast("cuda")
     def run_safety_checker(self, image):
@@ -189,7 +214,6 @@ class Predictor(BasePredictor):
         print(f"Using seed: {seed}")
 
         width, height = self.aspect_ratio_to_width_height(aspect_ratio)
-        max_sequence_length = 512
 
         flux_kwargs = {}
         print(f"Prompt: {prompt}")
@@ -210,6 +234,8 @@ class Predictor(BasePredictor):
 
         if replicate_weights:
             self.load_trained_weights(replicate_weights, pipe, lora_scale)
+        else:
+            pipe.unload_lora_weights()
 
         generator = torch.Generator("cuda").manual_seed(seed)
 
@@ -223,9 +249,6 @@ class Predictor(BasePredictor):
         }
 
         output = pipe(**common_args, **flux_kwargs)
-
-        if replicate_weights:
-            pipe.unload_lora_weights()
 
         if not disable_safety_checker:
             _, has_nsfw_content = self.run_safety_checker(output.images)
