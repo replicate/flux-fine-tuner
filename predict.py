@@ -133,7 +133,7 @@ class Predictor(BasePredictor):
         )
         return image, has_nsfw_concept
 
-    def aspect_ratio_to_width_height(self, aspect_ratio: str):
+    def aspect_ratio_to_width_height(self, aspect_ratio: str) -> tuple[int, int]:
         aspect_ratios = {
             "1:1": (1024, 1024),
             "16:9": (1344, 768),
@@ -145,16 +145,28 @@ class Predictor(BasePredictor):
             "9:16": (768, 1344),
             "9:21": (640, 1536),
         }
-        return aspect_ratios.get(aspect_ratio)
+        return aspect_ratios[aspect_ratio]
 
     @torch.inference_mode()
     def predict(
         self,
         prompt: str = Input(description="Prompt for generated image"),
         aspect_ratio: str = Input(
-            description="Aspect ratio for the generated image",
-            choices=["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21"],
+            description="Aspect ratio for the generated image. The size will always be 1 megapixel, i.e. 1024x1024 if aspect ratio is 1:1. To use arbitrary width and height, set aspect ratio to 'custom'.",
+            choices=["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21", "custom"],
             default="1:1",
+        ),
+        width: int = Input(
+            description="Width of the generated image. Optional, only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)",
+            ge=256,
+            le=1440,
+            default=None,
+        ),
+        height: int = Input(
+            description="Height of the generated image. Optional, only used when aspect_ratio=custom. Must be a multiple of 16 (if it's not, it will be rounded to nearest multiple of 16)",
+            ge=256,
+            le=1440,
+            default=None,
         ),
         num_outputs: int = Input(
             description="Number of images to output.",
@@ -213,7 +225,14 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
-        width, height = self.aspect_ratio_to_width_height(aspect_ratio)
+        if aspect_ratio == "custom":
+            if width is None or height is None:
+                raise ValueError("width and height must be defined if aspect ratio is 'custom'")
+            width = make_multiple_of_16(width)
+            height = make_multiple_of_16(height)
+        else:
+            width, height = self.aspect_ratio_to_width_height(aspect_ratio)
+        max_sequence_length = 512
 
         flux_kwargs = {}
         print(f"Prompt: {prompt}")
@@ -271,3 +290,7 @@ class Predictor(BasePredictor):
             )
 
         return output_paths
+
+
+def make_multiple_of_16(n):
+    return ((n + 15) // 16) * 16
