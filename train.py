@@ -36,7 +36,8 @@ class TrainingOutput(BaseModel):
 
 def train(
     input_images: Path = Input(
-        description="A zip file containing the images that will be used for training. We recommend a minimum of 10 images. If you include captions, include them as one .txt file per image, e.g. my-photo.jpg should have a caption file named my-photo.txt. If you don't include captions, you can use autocaptioning (enabled by default)."
+        description="A zip file containing the images that will be used for training. We recommend a minimum of 10 images. If you include captions, include them as one .txt file per image, e.g. my-photo.jpg should have a caption file named my-photo.txt. If you don't include captions, you can use autocaptioning (enabled by default).",
+        default=None,
     ),
     trigger_word: str = Input(
         description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn’t a real word, like TOK or something related to what’s being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
@@ -74,19 +75,21 @@ def train(
         description="Hugging Face token, if you'd like to upload the trained LoRA to Hugging Face.",
         default=None,
     ),
+    skip_training_and_use_pretrained_hf_lora_url: str = Input(
+        description="If you’d like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that’s on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
+        default=None,
+    ),
 ) -> TrainingOutput:
     clean_up()
     output_path = "/tmp/trained_model.tar"
 
-    # Shortcut training and host a pretrained LoRA from Hugging Face
-    # This has the advantage of putting the LoRA onto the hotswap base
-    if (
-        input_images.startswith("https://huggingface.co")
-        and ".safetensors" in input_images
-    ):
-        download_huggingface_lora(input_images)
-        os.system(f"tar -cvf {output_path} /tmp/flux_train_replicate")
+    if skip_training_and_use_pretrained_hf_lora_url is not None:
+        download_huggingface_lora(
+            skip_training_and_use_pretrained_hf_lora_url, output_path
+        )
         return TrainingOutput(weights=Path(output_path))
+    elif not input_images:
+        raise ValueError("input_images must be provided")
 
     download_weights()
     extract_zip(input_images, INPUT_DIR)
@@ -258,11 +261,16 @@ def clean_up():
         shutil.rmtree(OUTPUT_DIR)
 
 
-def download_huggingface_lora(hf_lora_url: str):
-    lora_path = "/tmp/flux_train_replicate/lora.safetensors"
-    if os.path.exists(lora_path):
-        os.remove(lora_path)
+def download_huggingface_lora(hf_lora_url: str, output_path: str):
+    if (
+        not hf_lora_url.startswith("https://huggingface.co")
+        or ".safetensors" not in hf_lora_url
+    ):
+        raise ValueError(
+            "Invalid URL. Use a HuggingFace download URL like https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors"
+        )
 
+    lora_path = OUTPUT_DIR / "flux_train_replicate" / "lora.safetensors"
     print(f"Downloading {hf_lora_url} to {lora_path}")
     subprocess.check_output(
         [
@@ -272,6 +280,7 @@ def download_huggingface_lora(hf_lora_url: str):
             lora_path,
         ]
     )
+    os.system(f"tar -cvf {output_path} {lora_path}")
 
 
 def download_weights():
