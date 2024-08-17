@@ -114,7 +114,7 @@ def train(
                         "datasets": [
                             {
                                 "folder_path": str(INPUT_DIR),
-                                "caption_ext": "filename",
+                                "caption_ext": "txt",
                                 "caption_dropout_rate": 0.05,
                                 "shuffle_tokens": False,
                                 "cache_latents_to_disk": True,
