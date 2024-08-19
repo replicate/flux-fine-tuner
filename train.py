@@ -82,7 +82,7 @@ def train(
     steps: int = Input(
         description="Number of training steps. Recommended range 500-4000",
         ge=10,
-        le=4000,
+        le=6000,
         default=1000,
     ),
     learning_rate: float = Input(
