@@ -67,6 +67,11 @@ def train(
     batch_size: int = Input(
         description="Batch size, you can leave this as 1", default=1
     ),
+    lora_rank: int = Input(
+        description="Rank of the LoRA matrix. Higher ranks take longer to train but can capture more complex features. Caption quality is more important for higher ranks.",
+        choices=[16, 32, 64, 128],
+        default=16,
+    ),
     hf_repo_id: str = Input(
         description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora.",
         default=None,
@@ -105,7 +110,11 @@ def train(
                         "training_folder": str(OUTPUT_DIR),
                         "device": "cuda:0",
                         "trigger_word": trigger_word,
-                        "network": {"type": "lora", "linear": 16, "linear_alpha": 16},
+                        "network": {
+                            "type": "lora",
+                            "linear": lora_rank,
+                            "linear_alpha": lora_rank,
+                        },
                         "save": {
                             "dtype": "float16",
                             "save_every": steps + 1,
