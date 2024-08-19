@@ -25,6 +25,20 @@ SAFETY_CACHE = "safety-cache"
 FEATURE_EXTRACTOR = "/src/feature-extractor"
 SAFETY_URL = "https://weights.replicate.delivery/default/sdxl/safety-1.0.tar"
 
+ASPECT_RATIOS = {
+    "1:1": (1024, 1024),
+    "16:9": (1344, 768),
+    "21:9": (1536, 640),
+    "3:2": (1216, 832),
+    "2:3": (832, 1216),
+    "4:5": (896, 1088),
+    "5:4": (1088, 896),
+    "3:4": (896, 1152),
+    "4:3": (1152, 896),
+    "9:16": (768, 1344),
+    "9:21": (640, 1536),
+}
+
 
 def download_weights(url, dest):
     start = time.time()
@@ -112,7 +126,11 @@ class Predictor(BasePredictor):
         print("setup took: ", time.time() - start)
 
     def get_loaded_weights_string(self, pipe: FluxPipeline):
-        return self.dev_weights if pipe.transformer.config.guidance_embeds else self.schnell_weights
+        return (
+            self.dev_weights
+            if pipe.transformer.config.guidance_embeds
+            else self.schnell_weights
+        )
 
     def set_loaded_weights_string(self, pipe: FluxPipeline, new_weights: str):
         if pipe.transformer.config.guidance_embeds:
@@ -134,18 +152,7 @@ class Predictor(BasePredictor):
         return image, has_nsfw_concept
 
     def aspect_ratio_to_width_height(self, aspect_ratio: str) -> tuple[int, int]:
-        aspect_ratios = {
-            "1:1": (1024, 1024),
-            "16:9": (1344, 768),
-            "21:9": (1536, 640),
-            "3:2": (1216, 832),
-            "2:3": (832, 1216),
-            "4:5": (896, 1088),
-            "5:4": (1088, 896),
-            "9:16": (768, 1344),
-            "9:21": (640, 1536),
-        }
-        return aspect_ratios[aspect_ratio]
+        return ASPECT_RATIOS[aspect_ratio]
 
     @torch.inference_mode()
     def predict(
@@ -153,7 +160,7 @@ class Predictor(BasePredictor):
         prompt: str = Input(description="Prompt for generated image"),
         aspect_ratio: str = Input(
             description="Aspect ratio for the generated image. The size will always be 1 megapixel, i.e. 1024x1024 if aspect ratio is 1:1. To use arbitrary width and height, set aspect ratio to 'custom'.",
-            choices=["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21", "custom"],
+            choices=list(ASPECT_RATIOS.keys()) + ["custom"],
             default="1:1",
         ),
         width: int = Input(
@@ -227,7 +234,9 @@ class Predictor(BasePredictor):
 
         if aspect_ratio == "custom":
             if width is None or height is None:
-                raise ValueError("width and height must be defined if aspect ratio is 'custom'")
+                raise ValueError(
+                    "width and height must be defined if aspect ratio is 'custom'"
+                )
             width = make_multiple_of_16(width)
             height = make_multiple_of_16(height)
         else:
