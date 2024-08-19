@@ -68,8 +68,7 @@ def train(
         description="Batch size, you can leave this as 1", default=1
     ),
     lora_rank: int = Input(
-        description="Rank of the LoRA matrix. Higher ranks take longer to train but can capture more complex features. Caption quality is more important for higher ranks.",
-        choices=[16, 32, 64, 128],
+        description="Supports 16, 32, 64, 128. Higher ranks take longer to train but can capture more complex features. Caption quality is more important for higher ranks.",
         default=16,
     ),
     hf_repo_id: str = Input(
@@ -87,6 +86,9 @@ def train(
 ) -> TrainingOutput:
     clean_up()
     output_path = "/tmp/trained_model.tar"
+
+    if lora_rank not in [16, 32, 64, 128]:
+        raise ValueError("lora_rank must be one of 16, 32, 64, 128")
 
     if skip_training_and_use_pretrained_hf_lora_url is not None:
         download_huggingface_lora(
