@@ -21,13 +21,38 @@ from zipfile import ZipFile
 from cog import BaseModel, Input, Path, Secret
 from huggingface_hub import HfApi
 
-from jobs import ExtensionJob
+from jobs import BaseJob
 from toolkit.config import get_config
+from extensions_built_in.sd_trainer.SDTrainer import SDTrainer
+
 from caption import Captioner
 
 WEIGHTS_PATH = Path("./FLUX.1-dev")
 INPUT_DIR = Path("input_images")
 OUTPUT_DIR = Path("output")
+
+
+class CustomSDTrainer(SDTrainer):
+    def hook_train_loop(self, batch):
+        # TODO: Add W&B logging, etc.
+        return super().hook_train_loop(batch)
+
+
+class CustomJob(BaseJob):
+    def __init__(self, config: OrderedDict):
+        super().__init__(config)
+        self.device = self.get_conf("device", "cpu")
+        self.process_dict = {"custom_sd_trainer": CustomSDTrainer}
+        self.load_processes(self.process_dict)
+
+    def run(self):
+        super().run()
+        # Keeping this for backwards compatibility
+        print(
+            f"Running  {len(self.process)} process{'' if len(self.process) == 1 else 'es'}"
+        )
+        for process in self.process:
+            process.run()
 
 
 class TrainingOutput(BaseModel):
@@ -103,12 +128,12 @@ def train(
 
     train_config = OrderedDict(
         {
-            "job": "extension",
+            "job": "custom_job",
             "config": {
                 "name": "flux_train_replicate",
                 "process": [
                     {
-                        "type": "sd_trainer",
+                        "type": "custom_sd_trainer",
                         "training_folder": str(OUTPUT_DIR),
                         "device": "cuda:0",
                         "trigger_word": trigger_word,
@@ -182,7 +207,7 @@ def train(
     torch.cuda.empty_cache()
 
     print("Starting train job")
-    job = ExtensionJob(get_config(train_config, name=None))
+    job = CustomJob(get_config(train_config, name=None))
     job.run()
     job.cleanup()
 
