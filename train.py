@@ -220,9 +220,19 @@ def train(
     if optimizer_file.exists():
         os.remove(optimizer_file)
 
+    # Copy generated captions to the output tar
+    # But do not upload publicly to HF
+    captions_dir = lora_dir / "captions"
+    captions_dir.mkdir(exist_ok=True)
+    for caption_file in INPUT_DIR.glob("*.txt"):
+        shutil.copy(caption_file, captions_dir)
+
     os.system(f"tar -cvf {output_path} {lora_dir}")
 
     if hf_token is not None and hf_repo_id is not None:
+        if captions_dir.exists():
+            shutil.rmtree(captions_dir)
+
         try:
             handle_hf_readme(lora_dir, hf_repo_id, trigger_word)
             print(f"Uploading to Hugging Face: {hf_repo_id}")
