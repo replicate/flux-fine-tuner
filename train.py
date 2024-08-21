@@ -13,6 +13,7 @@ from submodule_patches import patch_submodules
 patch_submodules()
 
 import sys
+import time
 import torch
 from typing import OrderedDict, Optional
 import shutil
@@ -310,6 +311,9 @@ def clean_up():
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
 
+    if WEIGHTS_PATH.exists():
+        shutil.rmtree(WEIGHTS_PATH)
+
 
 def download_huggingface_lora(hf_lora_url: str, output_path: str):
     if (
@@ -335,6 +339,7 @@ def download_huggingface_lora(hf_lora_url: str, output_path: str):
 
 def download_weights():
     if not WEIGHTS_PATH.exists():
+        t1 = time.time()
         subprocess.check_output(
             [
                 "pget",
@@ -343,3 +348,5 @@ def download_weights():
                 str(WEIGHTS_PATH.parent),
             ]
         )
+        t2 = time.time()
+        print(f"Downloaded base weights in {t2 - t1} seconds")
