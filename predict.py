@@ -9,6 +9,7 @@ import tempfile
 import tarfile
 from io import BytesIO
 import numpy as np
+import re
 from diffusers import FluxPipeline
 from weights import WeightsDownloadCache
 from transformers import CLIPImageProcessor
@@ -16,7 +17,9 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
 
-MODEL_URL_DEV = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
+MODEL_URL_DEV = (
+    "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
+)
 MODEL_URL_SCHNELL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-schnell/slim.tar"
 SAFETY_CACHE = "safety-cache"
 FEATURE_EXTRACTOR = "/src/feature-extractor"
@@ -49,42 +52,44 @@ class Predictor(BasePredictor):
     def load_trained_weights(
         self, weights: Path | str, pipe: FluxPipeline, lora_scale: float
     ):
-        if isinstance(weights, str) and weights.startswith("data:"):
-            # Handle data URL
-            print("Loading LoRA weights from data URL")
-
-            # not caching data URIs, can revisit if this becomes common
-            pipe.unload_lora_weights()
-            self.set_loaded_weights_string(pipe, "loading")
-            _, encoded = weights.split(",", 1)
-            data = base64.b64decode(encoded)
-            with tempfile.TemporaryDirectory() as temp_dir:
-                with tarfile.open(fileobj=BytesIO(data), mode="r:*") as tar:
-                    tar.extractall(path=temp_dir)
-                lora_path = os.path.join(
-                    temp_dir, "output/flux_train_replicate/lora.safetensors"
-                )
-                pipe.load_lora_weights(lora_path)
-                pipe.fuse_lora(lora_scale=lora_scale)
-                self.set_loaded_weights_string(pipe, "data_uri")
+        is_data_uri = isinstance(weights, str) and weights.startswith("data:")
+        if is_data_uri:
+            self._load_from_data_url(weights, pipe, lora_scale)
         else:
-            # Handle local path
-            print("Loading LoRA weights")
-            weights = str(weights)
-            if weights == self.get_loaded_weights_string(pipe):
-                print("Weights already loaded")
-                return
-            pipe.unload_lora_weights()
-
-            self.set_loaded_weights_string(pipe, "loading")
-            local_weights_cache = self.weights_cache.ensure(weights)
-            lora_path = os.path.join(
-                local_weights_cache, "output/flux_train_replicate/lora.safetensors"
-            )
-            pipe.load_lora_weights(lora_path)
-            self.set_loaded_weights_string(pipe, weights)
+            self._load_from_local_path(weights, pipe)
 
         print("LoRA weights loaded successfully")
+
+    def _load_from_data_url(self, weights: str, pipe: FluxPipeline, lora_scale: float):
+        print("Loading LoRA weights from data uri")
+        pipe.unload_lora_weights()
+        self.set_loaded_weights_string(pipe, "loading")
+        _, encoded = weights.split(",", 1)
+        data = base64.b64decode(encoded)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with tarfile.open(fileobj=BytesIO(data), mode="r:*") as tar:
+                tar.extractall(path=temp_dir)
+            lora_path = os.path.join(
+                temp_dir, "output/flux_train_replicate/lora.safetensors"
+            )
+            pipe.load_lora_weights(lora_path)
+            pipe.fuse_lora(lora_scale=lora_scale)
+            self.set_loaded_weights_string(pipe, "data_uri")
+
+    def _load_from_local_path(self, weights: str, pipe: FluxPipeline):
+        print("Loading LoRA weights from local path")
+        if weights == self.get_loaded_weights_string(pipe):
+            print("Weights already loaded")
+            return
+        pipe.unload_lora_weights()
+
+        self.set_loaded_weights_string(pipe, "loading")
+        local_weights_cache = self.weights_cache.ensure(weights)
+        lora_path = os.path.join(
+            local_weights_cache, "output/flux_train_replicate/lora.safetensors"
+        )
+        pipe.load_lora_weights(lora_path)
+        self.set_loaded_weights_string(pipe, weights)
 
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
@@ -208,6 +213,16 @@ class Predictor(BasePredictor):
         seed: int = Input(
             description="Random seed. Set for reproducible generation", default=None
         ),
+        extra_lora: str = Input(
+            description="Combine this fine-tune with another LoRA. Give a Hugging Face repo ID, or URL to LoRA weights. For example, 'alvdansen/frosting_lane_flux'",
+            default=None,
+        ),
+        extra_lora_scale: float = Input(
+            description="Scale for the extra LoRA weights",
+            ge=0,
+            le=1,
+            default=0.8,
+        ),
         output_format: str = Input(
             description="Format of the output images",
             choices=["webp", "jpg", "png"],
@@ -249,8 +264,7 @@ class Predictor(BasePredictor):
         print("txt2img mode")
         flux_kwargs["width"] = width
         flux_kwargs["height"] = height
-        if replicate_weights:
-            flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
+
         if model == "dev":
             print("Using dev model")
             max_sequence_length = 512
@@ -262,9 +276,57 @@ class Predictor(BasePredictor):
             guidance_scale = 0
 
         if replicate_weights:
+            flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
             self.load_trained_weights(replicate_weights, pipe, lora_scale)
         else:
             pipe.unload_lora_weights()
+
+        if extra_lora:
+            print(f"Loading extra LoRA weights from: {extra_lora}")
+            # flux_kwargs["joint_attention_kwargs"] = {"scale": extra_lora_scale}
+            # if re.match(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", extra_lora):
+            #     print(f"Downloading LoRA weights from - HF path: {extra_lora}")
+            #     pipe.load_lora_weights(extra_lora)
+            # elif re.match(
+            #     r"^https?://replicate.delivery/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+/trained_model.tar",
+            #     extra_lora,
+            # ):
+            #     print(f"Downloading LoRA weights from - Replicate URL: {extra_lora}")
+            #     local_weights_cache = self.weights_cache.ensure(extra_lora)
+            #     lora_path = os.path.join(
+            #         local_weights_cache, "output/flux_train_replicate/lora.safetensors"
+            #     )
+            #     pipe.load_lora_weights(lora_path)
+            # elif re.match(r"^https?://huggingface.co", extra_lora):
+            #     print(f"Downloading LoRA weights from - HF URL: {extra_lora}")
+            #     huggingface_slug = re.search(
+            #         r"^https?://huggingface.co/([a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+)",
+            #         extra_lora,
+            #     ).group(1)
+            #     weight_name = extra_lora.split("/")[-1]
+            #     print(
+            #         f"HuggingFace slug from URL: {huggingface_slug}, weight name: {weight_name}"
+            #     )
+            #     pipe.load_lora_weights(huggingface_slug, weight_name=weight_name)
+            # elif re.match(
+            #     r"^https?://civitai.com/api/download/models/[0-9]+\?type=Model&format=SafeTensor",
+            #     extra_lora,
+            # ):
+            #     civitai_slug = extra_lora.split("?type")[0]
+            #     print(f"Downloading LoRA weights from - Civitai URL: {civitai_slug}")
+            #     lora_path = self.weights_cache.ensure(extra_lora, file=True)
+            #     pipe.load_lora_weights(lora_path)
+            # elif extra_lora.endswith(".safetensors"):
+            #     print(f"Downloading LoRA weights from - safetensor URL: {extra_lora}")
+            #     try:
+            #         lora_path = self.weights_cache.ensure(extra_lora, file=True)
+            #     except Exception as e:
+            #         raise Exception(f"Error downloading LoRA weights from URL: {e}")
+            #     pipe.load_lora_weights(lora_path)
+            # else:
+            #     raise Exception(
+            #         f"Invalid lora, must be either a: HuggingFace path, Replicate model.tar URL, or a URL to a .safetensors file: {extra_lora}"
+            #     )
 
         generator = torch.Generator("cuda").manual_seed(seed)
 
