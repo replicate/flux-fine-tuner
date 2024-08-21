@@ -117,11 +117,10 @@ class WeightsDownloadCache:
         st = time.time()
         # maybe retry with the real url if this doesn't work
         try:
-            output = subprocess.check_output(["pget", "-x", url, dest], close_fds=True)
-            print(output)
+            subprocess.check_output(["pget", "--log-level", "warn", "-x", url, dest], close_fds=True)
         except subprocess.CalledProcessError as e:
             # If download fails, clean up and re-raise exception
             print(e.output)
             self._rm_disk(dest)
             raise e
-        print(f"Downloaded weights in {time.time() - st} seconds")
+        print(f"Downloaded weights in {time.time() - st:.2f}s")

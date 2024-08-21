@@ -16,7 +16,6 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
 
-# MODEL_URL_DEV = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/model-cache.tar"
 MODEL_URL_DEV = (
     "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
 )
@@ -75,7 +74,7 @@ class Predictor(BasePredictor):
             print("Loading LoRA weights")
             weights = str(weights)
             if weights == self.get_loaded_weights_string(pipe):
-                print("weights already loaded!")
+                print("Weights already loaded")
                 return
             pipe.unload_lora_weights()
 
