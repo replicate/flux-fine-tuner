@@ -16,11 +16,8 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
 
-# MODEL_URL_DEV = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/model-cache.tar"
-MODEL_URL_DEV = (
-    "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
-)
-MODEL_URL_SCHNELL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-schnell/files.tar"
+MODEL_URL_DEV = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
+MODEL_URL_SCHNELL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-schnell/slim.tar"
 SAFETY_CACHE = "safety-cache"
 FEATURE_EXTRACTOR = "/src/feature-extractor"
 SAFETY_URL = "https://weights.replicate.delivery/default/sdxl/safety-1.0.tar"
@@ -116,9 +113,13 @@ class Predictor(BasePredictor):
 
         print("Loading Flux schnell pipeline")
         if not os.path.exists("FLUX.1-schnell"):
-            download_weights(MODEL_URL_SCHNELL, ".")
+            download_weights(MODEL_URL_SCHNELL, "FLUX.1-schnell")
         self.schnell_pipe = FluxPipeline.from_pretrained(
             "FLUX.1-schnell",
+            text_encoder=self.dev_pipe.text_encoder,
+            text_encoder_2=self.dev_pipe.text_encoder_2,
+            tokenizer=self.dev_pipe.tokenizer,
+            tokenizer_2=self.dev_pipe.tokenizer_2,
             torch_dtype=torch.bfloat16,
         ).to("cuda")
         self.schnell_weights = ""
