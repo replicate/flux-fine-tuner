@@ -96,6 +96,10 @@ def train(
         description="Supports 16, 32, 64, 128. Higher ranks take longer to train but can capture more complex features. Caption quality is more important for higher ranks.",
         default=16,
     ),
+    optimizer: str = Input(
+        description="Optimizer to use for training. Supports: prodigy, adam8bit, adamw8bit, lion8bit, adam, adamw, lion, adagrad, adafactor.",
+        default="adamw8bit",
+    ),
     hf_repo_id: str = Input(
         description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora.",
         default=None,
@@ -166,7 +170,7 @@ def train(
                             "content_or_style": "balanced",
                             "gradient_checkpointing": True,
                             "noise_scheduler": "flowmatch",
-                            "optimizer": "adamw8bit",
+                            "optimizer": optimizer,
                             "lr": learning_rate,
                             "ema_config": {"use_ema": True, "ema_decay": 0.99},
                             "dtype": "bf16",
