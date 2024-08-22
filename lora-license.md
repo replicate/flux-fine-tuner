@@ -8,6 +8,7 @@ tags:
 - flux
 - diffusers
 - lora
+- replicate
 base_model: "black-forest-labs/FLUX.1-dev"
 pipeline_tag: text-to-image
 [instance_prompt]
