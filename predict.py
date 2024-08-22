@@ -121,8 +121,7 @@ class Predictor(BasePredictor):
             tokenizer=self.dev_pipe.tokenizer,
             tokenizer_2=self.dev_pipe.tokenizer_2,
             torch_dtype=torch.bfloat16,
-        # ).to("cuda")
-        )
+        ).to("cuda")
         self.schnell_weights = {'base': None, 'extra': None}
 
         print("setup took: ", time.time() - start)
@@ -155,43 +154,41 @@ class Predictor(BasePredictor):
             self.set_loaded_weights_string(pipe, "extra", "loading")
             self.load_base_lora(weights, pipe)
 
-        # Check if setting extra_lora for the first time
-        if self.get_loaded_weights_string(pipe, "extra") is None:
-            print("Loading extra LoRA:")
-            if re.match(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", extra_lora):
-                print(f"Downloading LoRA weights from - HF path: {extra_lora}")
-                pipe.load_lora_weights(extra_lora, adapter_name="extra")
-            # Check for Replicate tar file
-            elif re.match(r"^https?://replicate.delivery/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+/trained_model.tar", extra_lora):
-                print(f"Downloading LoRA weights from - Replicate URL: {extra_lora}")
-                local_weights_cache = self.weights_cache.ensure(extra_lora)
-                lora_path = os.path.join(local_weights_cache, "output/flux_train_replicate/lora.safetensors")
-                pipe.load_lora_weights(lora_path, adapter_name="extra")
-            # Check for Huggingface URL
-            elif re.match(r"^https?://huggingface.co", extra_lora):
-                print(f"Downloading LoRA weights from - HF URL: {extra_lora}")
-                huggingface_slug = re.search(r"^https?://huggingface.co/([a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+)", extra_lora).group(1)
-                weight_name = extra_lora.split('/')[-1]
-                print(f"HuggingFace slug from URL: {huggingface_slug}, weight name: {weight_name}")
-                pipe.load_lora_weights(huggingface_slug, weight_name=weight_name, adapter_name="extra")
-            # Check for Civitai URL
-            elif re.match(r"^https?://civitai.com/api/download/models/[0-9]+\?type=Model&format=SafeTensor", extra_lora):
-                # split url to get first part of the url, everythin before '?type'
-                civitai_slug = extra_lora.split('?type')[0]
-                print(f"Downloading LoRA weights from - Civitai URL: {civitai_slug}")
+        print("Loading extra LoRA:")
+        if re.match(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", extra_lora):
+            print(f"Downloading LoRA weights from - HF path: {extra_lora}")
+            pipe.load_lora_weights(extra_lora, adapter_name="extra")
+        # Check for Replicate tar file
+        elif re.match(r"^https?://replicate.delivery/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+/trained_model.tar", extra_lora):
+            print(f"Downloading LoRA weights from - Replicate URL: {extra_lora}")
+            local_weights_cache = self.weights_cache.ensure(extra_lora)
+            lora_path = os.path.join(local_weights_cache, "output/flux_train_replicate/lora.safetensors")
+            pipe.load_lora_weights(lora_path, adapter_name="extra")
+        # Check for Huggingface URL
+        elif re.match(r"^https?://huggingface.co", extra_lora):
+            print(f"Downloading LoRA weights from - HF URL: {extra_lora}")
+            huggingface_slug = re.search(r"^https?://huggingface.co/([a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+)", extra_lora).group(1)
+            weight_name = extra_lora.split('/')[-1]
+            print(f"HuggingFace slug from URL: {huggingface_slug}, weight name: {weight_name}")
+            pipe.load_lora_weights(huggingface_slug, weight_name=weight_name, adapter_name="extra")
+        # Check for Civitai URL
+        elif re.match(r"^https?://civitai.com/api/download/models/[0-9]+\?type=Model&format=SafeTensor", extra_lora):
+            # split url to get first part of the url, everythin before '?type'
+            civitai_slug = extra_lora.split('?type')[0]
+            print(f"Downloading LoRA weights from - Civitai URL: {civitai_slug}")
+            lora_path = self.weights_cache.ensure(extra_lora, file=True)
+            pipe.load_lora_weights(lora_path, adapter_name="extra")
+        # Check for URL to a .safetensors file
+        elif extra_lora.endswith('.safetensors'):
+            print(f"Downloading LoRA weights from - safetensor URL: {extra_lora}")
+            try:
                 lora_path = self.weights_cache.ensure(extra_lora, file=True)
-                pipe.load_lora_weights(lora_path, adapter_name="extra")
-            # Check for URL to a .safetensors file
-            elif extra_lora.endswith('.safetensors'):
-                print(f"Downloading LoRA weights from - safetensor URL: {extra_lora}")
-                try:
-                    lora_path = self.weights_cache.ensure(extra_lora, file=True)
-                except Exception as e:
-                    print(f"Error downloading LoRA weights: {e}")
-                    return
-                pipe.load_lora_weights(lora_path, adapter_name="extra")
-            else:
-                raise Exception(f"Invalid lora, must be either a: HuggingFace path, Replicate model.tar, or a URL to a .safetensors file: {extra_lora}")
+            except Exception as e:
+                print(f"Error downloading LoRA weights: {e}")
+                return
+            pipe.load_lora_weights(lora_path, adapter_name="extra")
+        else:
+            raise Exception(f"Invalid lora, must be either a: HuggingFace path, Replicate model.tar, or a URL to a .safetensors file: {extra_lora}")
 
         self.set_loaded_weights_string(pipe, "extra", extra_lora)
 
