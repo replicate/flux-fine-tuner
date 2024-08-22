@@ -3,6 +3,15 @@ name: CI
 on:
   workflow_dispatch:
     branches: [main]
+    inputs:
+      test_only:
+        description: 'Test only, without pushing to prod'
+        type: boolean
+        default: true
+      compare_outputs:
+        description: 'Compare outputs between existing version and new version'
+        type: boolean
+        default: true
 
 jobs:
   cog-safe-push:
@@ -36,8 +45,8 @@ jobs:
       run: |
         cog-safe-push -vv \
           --test-model=replicate-internal/test-flux-fine-tuner \
-          --test-only \
-          --no-compare-outputs \
+          ${{ github.event.inputs.test_only == 'true' && '--test-only' || '' }} \
+          ${{ github.event.inputs.compare_outputs == 'false' && '--no-compare-outputs' || '' }} \
           --test-hardware=cpu \
           -i replicate_weights="https://replicate.delivery/yhqm/iWjMZHd2T35kI5jaUkaG3Jb43MeA67PpYjKZQeifvTEf9yTNB/trained_model.tar" \
           ostris/flux-dev-lora-trainer
