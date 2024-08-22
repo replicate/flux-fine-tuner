@@ -68,13 +68,14 @@ class WeightsDownloadCache:
         print(f"Free disk space: {disk_usage.free}")
         return disk_usage.free >= self.min_disk_free
 
-    def ensure(self, url: str) -> str:
+    def ensure(self, url: str, file: bool = False) -> str:
         """
         Ensure weights file is in the cache and return its path.
 
         This also updates the LRU cache to mark the weights as recently used.
 
         :param url: URL to download weights file from, if not in cache.
+        :param file: If True, download the file as is, otherwise extract it.
         :return: Path to weights.
         """
         path = self.weights_path(url)
@@ -85,7 +86,10 @@ class WeightsDownloadCache:
             self.lru_paths.remove(path)
         else:
             self._misses += 1
-            self.download_weights(url, path)
+            if file:
+                self.download_weights(url, path, file=True)
+            else:
+                self.download_weights(url, path, file=False)
 
         self.lru_paths.append(path)  # Add file to end of cache
         return path
@@ -101,12 +105,13 @@ class WeightsDownloadCache:
         short_hash = hashed_url[:16]  # Use the first 16 characters of the hash
         return os.path.join(self.base_dir, short_hash)
 
-    def download_weights(self, url: str, dest: str) -> None:
+    def download_weights(self, url: str, dest: str, file: bool = False) -> None:
         """
         Download weights file from a URL, ensuring there's enough disk space.
 
         :param url: URL to download weights file from.
         :param dest: Path to store weights file.
+        :param file: If True, download the file as is, otherwise extract it.
         """
         print("Ensuring enough disk space...")
         while not self._has_enough_space() and len(self.lru_paths) > 0:
@@ -114,10 +119,14 @@ class WeightsDownloadCache:
 
         print("Downloading weights")
 
+        call_args = ["pget", "--log-level", "warn", "-x", url, dest]
+        if file:
+            call_args = ["pget", "--log-level", "warn", url, dest]
+
         st = time.time()
         # maybe retry with the real url if this doesn't work
         try:
-            subprocess.check_output(["pget", "--log-level", "warn", "-x", url, dest], close_fds=True)
+            subprocess.check_output(call_args, close_fds=True)
         except subprocess.CalledProcessError as e:
             # If download fails, clean up and re-raise exception
             print(e.output)
