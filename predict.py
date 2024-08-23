@@ -1,22 +1,22 @@
-from cog import BasePredictor, Input, Path
+from dataclasses import dataclass
 import os
 import time
 import torch
 import subprocess
 from typing import List
-import base64
-import tempfile
-import tarfile
-from io import BytesIO
+from cog import BasePredictor, Input, Path
 import numpy as np
 from diffusers import FluxPipeline
-from weights import WeightsDownloadCache
 from transformers import CLIPImageProcessor
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
+from weights import WeightsDownloadCache
 
-MODEL_URL_DEV = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
+
+MODEL_URL_DEV = (
+    "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
+)
 MODEL_URL_SCHNELL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-schnell/slim.tar"
 SAFETY_CACHE = "safety-cache"
 FEATURE_EXTRACTOR = "/src/feature-extractor"
@@ -37,55 +37,13 @@ ASPECT_RATIOS = {
 }
 
 
-def download_weights(url, dest):
-    start = time.time()
-    print("downloading url: ", url)
-    print("downloading to: ", dest)
-    subprocess.check_call(["pget", "-xf", url, dest], close_fds=False)
-    print("downloading took: ", time.time() - start)
+@dataclass
+class LoadedLoRAs:
+    main: str | None
+    extra: str | None
 
 
 class Predictor(BasePredictor):
-    def load_trained_weights(
-        self, weights: Path | str, pipe: FluxPipeline, lora_scale: float
-    ):
-        if isinstance(weights, str) and weights.startswith("data:"):
-            # Handle data URL
-            print("Loading LoRA weights from data URL")
-
-            # not caching data URIs, can revisit if this becomes common
-            pipe.unload_lora_weights()
-            self.set_loaded_weights_string(pipe, "loading")
-            _, encoded = weights.split(",", 1)
-            data = base64.b64decode(encoded)
-            with tempfile.TemporaryDirectory() as temp_dir:
-                with tarfile.open(fileobj=BytesIO(data), mode="r:*") as tar:
-                    tar.extractall(path=temp_dir)
-                lora_path = os.path.join(
-                    temp_dir, "output/flux_train_replicate/lora.safetensors"
-                )
-                pipe.load_lora_weights(lora_path)
-                pipe.fuse_lora(lora_scale=lora_scale)
-                self.set_loaded_weights_string(pipe, "data_uri")
-        else:
-            # Handle local path
-            print("Loading LoRA weights")
-            weights = str(weights)
-            if weights == self.get_loaded_weights_string(pipe):
-                print("Weights already loaded")
-                return
-            pipe.unload_lora_weights()
-
-            self.set_loaded_weights_string(pipe, "loading")
-            local_weights_cache = self.weights_cache.ensure(weights)
-            lora_path = os.path.join(
-                local_weights_cache, "output/flux_train_replicate/lora.safetensors"
-            )
-            pipe.load_lora_weights(lora_path)
-            self.set_loaded_weights_string(pipe, weights)
-
-        print("LoRA weights loaded successfully")
-
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
         start = time.time()
@@ -96,7 +54,7 @@ class Predictor(BasePredictor):
 
         print("Loading safety checker...")
         if not os.path.exists(SAFETY_CACHE):
-            download_weights(SAFETY_URL, SAFETY_CACHE)
+            download_base_weights(SAFETY_URL, SAFETY_CACHE)
         self.safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_CACHE, torch_dtype=torch.float16
         ).to("cuda")
@@ -104,56 +62,34 @@ class Predictor(BasePredictor):
 
         print("Loading Flux dev pipeline")
         if not os.path.exists("FLUX.1-dev"):
-            download_weights(MODEL_URL_DEV, ".")
-        self.dev_pipe = FluxPipeline.from_pretrained(
+            download_base_weights(MODEL_URL_DEV, ".")
+        dev_pipe = FluxPipeline.from_pretrained(
             "FLUX.1-dev",
             torch_dtype=torch.bfloat16,
         ).to("cuda")
-        self.dev_weights = ""
 
         print("Loading Flux schnell pipeline")
         if not os.path.exists("FLUX.1-schnell"):
-            download_weights(MODEL_URL_SCHNELL, "FLUX.1-schnell")
-        self.schnell_pipe = FluxPipeline.from_pretrained(
+            download_base_weights(MODEL_URL_SCHNELL, "FLUX.1-schnell")
+        schnell_pipe = FluxPipeline.from_pretrained(
             "FLUX.1-schnell",
-            text_encoder=self.dev_pipe.text_encoder,
-            text_encoder_2=self.dev_pipe.text_encoder_2,
-            tokenizer=self.dev_pipe.tokenizer,
-            tokenizer_2=self.dev_pipe.tokenizer_2,
+            text_encoder=dev_pipe.text_encoder,
+            text_encoder_2=dev_pipe.text_encoder_2,
+            tokenizer=dev_pipe.tokenizer,
+            tokenizer_2=dev_pipe.tokenizer_2,
             torch_dtype=torch.bfloat16,
         ).to("cuda")
-        self.schnell_weights = ""
+
+        self.pipes = {
+            "dev": dev_pipe,
+            "schnell": schnell_pipe,
+        }
+        self.loaded_lora_urls = {
+            "dev": LoadedLoRAs(main=None, extra=None),
+            "schnell": LoadedLoRAs(main=None, extra=None),
+        }
 
         print("setup took: ", time.time() - start)
-
-    def get_loaded_weights_string(self, pipe: FluxPipeline):
-        return (
-            self.dev_weights
-            if pipe.transformer.config.guidance_embeds
-            else self.schnell_weights
-        )
-
-    def set_loaded_weights_string(self, pipe: FluxPipeline, new_weights: str):
-        if pipe.transformer.config.guidance_embeds:
-            self.dev_weights = new_weights
-        else:
-            self.schnell_weights = new_weights
-        return
-
-    @torch.amp.autocast("cuda")
-    def run_safety_checker(self, image):
-        safety_checker_input = self.feature_extractor(image, return_tensors="pt").to(
-            "cuda"
-        )
-        np_image = [np.array(val) for val in image]
-        image, has_nsfw_concept = self.safety_checker(
-            images=np_image,
-            clip_input=safety_checker_input.pixel_values.to(torch.float16),
-        )
-        return image, has_nsfw_concept
-
-    def aspect_ratio_to_width_height(self, aspect_ratio: str) -> tuple[int, int]:
-        return ASPECT_RATIOS[aspect_ratio]
 
     @torch.inference_mode()
     def predict(
@@ -183,7 +119,7 @@ class Predictor(BasePredictor):
             default=1,
         ),
         lora_scale: float = Input(
-            description="Determines how strongly the LoRA should be applied. Sane results between 0 and 1.",
+            description="Determines how strongly the main LoRA should be applied. Sane results between 0 and 1.",
             default=1.0,
             le=2.0,
             ge=-1.0,
@@ -207,6 +143,16 @@ class Predictor(BasePredictor):
         ),
         seed: int = Input(
             description="Random seed. Set for reproducible generation", default=None
+        ),
+        extra_lora: str = Input(
+            description="Combine this fine-tune with another LoRA. Supports Replicate models in the format <owner>/<username> or <owner>/<username>/<version>, HuggingFace URLs in the format huggingface.co/<owner>/<model-name>, CivitAI URLs in the format civitai.com/models/<id>[/<model-name>], or arbitrary .safetensors URLs from the Internet. For example, 'fofr/flux-pixar-cars'",
+            default=None,
+        ),
+        extra_lora_scale: float = Input(
+            description="Determines how strongly the extra LoRA should be applied.",
+            ge=0,
+            le=1,
+            default=0.8,
         ),
         output_format: str = Input(
             description="Format of the output images",
@@ -254,17 +200,30 @@ class Predictor(BasePredictor):
         if model == "dev":
             print("Using dev model")
             max_sequence_length = 512
-            pipe = self.dev_pipe
         else:
             print("Using schnell model")
             max_sequence_length = 256
-            pipe = self.schnell_pipe
             guidance_scale = 0
 
+        pipe = self.pipes[model]
+
         if replicate_weights:
-            self.load_trained_weights(replicate_weights, pipe, lora_scale)
+            start_time = time.time()
+            if extra_lora:
+                flux_kwargs["joint_attention_kwargs"] = {"scale": 1.0}
+                print(f"Loading extra LoRA weights from: {extra_lora}")
+                self.load_multiple_loras(replicate_weights, extra_lora, model)
+                pipe.set_adapters(
+                    ["main", "extra"], adapter_weights=[lora_scale, extra_lora_scale]
+                )
+            else:
+                flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
+                self.load_single_lora(replicate_weights, model)
+                pipe.set_adapters(["main"], adapter_weights=[lora_scale])
+            print(f"Loaded LoRAs in {time.time() - start_time:.2f}s")
         else:
             pipe.unload_lora_weights()
+            self.loaded_lora_urls[model] = LoadedLoRAs(main=None, extra=None)
 
         generator = torch.Generator("cuda").manual_seed(seed)
 
@@ -300,6 +259,66 @@ class Predictor(BasePredictor):
             )
 
         return output_paths
+
+    def load_single_lora(self, lora_url: str, model: str):
+        # If no change, skip
+        if lora_url == self.loaded_lora_urls[model].main:
+            print("Weights already loaded")
+            return
+
+        pipe = self.pipes[model]
+        pipe.unload_lora_weights()
+        lora_path = self.weights_cache.ensure(lora_url)
+        pipe.load_lora_weights(lora_path, adapter_name="main")
+        self.loaded_lora_urls[model] = LoadedLoRAs(main=lora_url, extra=None)
+
+    def load_multiple_loras(self, main_lora_url: str, extra_lora_url: str, model: str):
+        pipe = self.pipes[model]
+        loaded_lora_urls = self.loaded_lora_urls[model]
+
+        # If no change, skip
+        if (
+            main_lora_url == loaded_lora_urls.main
+            and extra_lora_url == self.loaded_lora_urls[model].extra
+        ):
+            print("Weights already loaded")
+            return
+
+        # We always need to load both?
+        pipe.unload_lora_weights()
+
+        main_lora_path = self.weights_cache.ensure(main_lora_url)
+        pipe.load_lora_weights(main_lora_path, adapter_name="main")
+
+        extra_lora_path = self.weights_cache.ensure(extra_lora_url)
+        pipe.load_lora_weights(extra_lora_path, adapter_name="extra")
+
+        self.loaded_lora_urls[model] = LoadedLoRAs(
+            main=main_lora_url, extra=extra_lora_url
+        )
+
+    @torch.amp.autocast("cuda")
+    def run_safety_checker(self, image):
+        safety_checker_input = self.feature_extractor(image, return_tensors="pt").to(
+            "cuda"
+        )
+        np_image = [np.array(val) for val in image]
+        image, has_nsfw_concept = self.safety_checker(
+            images=np_image,
+            clip_input=safety_checker_input.pixel_values.to(torch.float16),
+        )
+        return image, has_nsfw_concept
+
+    def aspect_ratio_to_width_height(self, aspect_ratio: str) -> tuple[int, int]:
+        return ASPECT_RATIOS[aspect_ratio]
+
+
+def download_base_weights(url, dest):
+    start = time.time()
+    print("downloading url: ", url)
+    print("downloading to: ", dest)
+    subprocess.check_call(["pget", "-xf", url, dest], close_fds=False)
+    print("downloading took: ", time.time() - start)
 
 
 def make_multiple_of_16(n):
