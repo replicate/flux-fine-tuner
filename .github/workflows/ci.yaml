@@ -2,7 +2,6 @@ name: CI
 
 on:
   workflow_dispatch:
-    branches: [main]
     inputs:
       test_only:
         description: 'Test only, without pushing to prod'
