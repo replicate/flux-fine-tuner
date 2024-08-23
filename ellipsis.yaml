@@ -1,0 +1,6 @@
+# See https://docs.ellipsis.dev for all available configurations.
+
+version: 1.3
+
+pr_review:
+  auto_review_enabled: true
