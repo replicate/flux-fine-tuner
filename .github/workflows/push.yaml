@@ -1,0 +1,52 @@
+name: Push
+
+on:
+  workflow_dispatch:
+    branches: [main]
+    inputs:
+      test_only:
+        description: 'Test only, without pushing to prod'
+        type: boolean
+        default: true
+      compare_outputs:
+        description: 'Compare outputs between existing version and new version'
+        type: boolean
+        default: true
+
+jobs:
+  cog-safe-push:
+    runs-on: ubuntu-latest-4-cores
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install Cog
+      run: |
+        sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)"
+        sudo chmod +x /usr/local/bin/cog
+
+    - name: cog login
+      run: |
+        echo ${{ secrets.COG_TOKEN }} | cog login --token-stdin
+
+    - name: Install cog-safe-push
+      run: |
+        pip install git+https://github.com/replicate/cog-safe-push.git
+
+    - name: Run cog-safe-push
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+      run: |
+        cog-safe-push -vv \
+          --test-model=replicate-internal/test-flux-fine-tuner \
+          ${{ github.event.inputs.test_only == 'true' && '--test-only' || '' }} \
+          ${{ github.event.inputs.compare_outputs == 'false' && '--no-compare-outputs' || '' }} \
+          --test-hardware=cpu \
+          -i replicate_weights="https://replicate.delivery/yhqm/iWjMZHd2T35kI5jaUkaG3Jb43MeA67PpYjKZQeifvTEf9yTNB/trained_model.tar" \
+          ostris/flux-dev-lora-trainer

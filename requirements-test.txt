@@ -1,0 +1,4 @@
+pytest
+requests-mock
+ruff
+black
