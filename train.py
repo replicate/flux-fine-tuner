@@ -93,6 +93,9 @@ def train(
     batch_size: int = Input(
         description="Batch size, you can leave this as 1", default=1
     ),
+    resolution: str = Input(
+        description="Image resolutions for training", default="512,768,1024"
+    ),
     lora_rank: int = Input(
         description="Supports 16, 32, 64, 128. Higher ranks take longer to train but can capture more complex features. Caption quality is more important for higher ranks.",
         default=16,
@@ -159,7 +162,9 @@ def train(
                                 "caption_dropout_rate": 0.05,
                                 "shuffle_tokens": False,
                                 "cache_latents_to_disk": True,
-                                "resolution": [512, 768, 1024],
+                                "resolution": [
+                                    int(res) for res in resolution.split(",")
+                                ],
                             }
                         ],
                         "train": {
