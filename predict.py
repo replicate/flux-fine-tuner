@@ -331,6 +331,7 @@ class Predictor(BasePredictor):
                 pipe.set_adapters(adapter_names, adapter_weights=adapter_weights)
             else:
                 self.load_trained_weights(replicate_weights, pipe)
+                pipe.set_adapters(["base"], adapter_weights = [lora_scale])
         else:
             flux_kwargs["joint_attention_kwargs"] = None
             pipe.unload_lora_weights()
