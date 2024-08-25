@@ -4,3 +4,4 @@ version: 1.3
 
 pr_review:
   auto_review_enabled: true
+  quiet: true
