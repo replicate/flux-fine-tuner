@@ -18,7 +18,7 @@ import torch
 from typing import OrderedDict, Optional
 import shutil
 import subprocess
-from zipfile import ZipFile
+from zipfile import ZipFile, is_zipfile
 from cog import BaseModel, Input, Path, Secret
 from huggingface_hub import HfApi
 
@@ -290,8 +290,8 @@ def handle_hf_readme(lora_dir: Path, hf_repo_id: str, trigger_word: Optional[str
 
 
 def extract_zip(input_images: Path, input_dir: Path):
-    if not input_images.name.endswith(".zip"):
-        raise ValueError("input_images must be a zip file")
+    if not is_zipfile(input_images):
+        raise ValueError("input_images must be a valid zip file")
 
     input_dir.mkdir(parents=True, exist_ok=True)
     image_count = 0
