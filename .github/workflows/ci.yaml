@@ -22,13 +22,13 @@ jobs:
       run: |
         pip install -r requirements-test.txt
 
-    - name: Run ruff
+    - name: Run ruff linter
       run: |
         ruff check --exclude=ai-toolkit/ --exclude=LLaVA/ --ignore=E402
 
-    - name: Run black
+    - name: Run ruff formatter
       run: |
-        black --check --exclude="ai-toolkit/|LLaVA/" .
+        ruff format --diff --exclude=ai-toolkit/ --exclude=LLaVA/
 
   unit-test:
     runs-on: ubuntu-latest
