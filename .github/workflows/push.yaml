@@ -52,6 +52,6 @@ jobs:
           -i extra_lora="(omit)^50%" \
           -i extra_lora="fofr/flux-pixar-cars" \
           -i extra_lora="huggingface.co/fofr/flux-wrong" \
-          -i extra_lora="civitai.com/models/654069" \
+          -i extra_lora="https://civitai.com/api/download/models/731747?type=Model&format=SafeTensor" \
           --predict-timeout=600 \
           ostris/flux-dev-lora-trainer
