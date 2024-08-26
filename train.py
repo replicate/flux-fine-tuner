@@ -313,9 +313,6 @@ def clean_up():
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
 
-    if WEIGHTS_PATH.exists():
-        shutil.rmtree(WEIGHTS_PATH)
-
 
 def download_huggingface_lora(hf_lora_url: str, output_path: str):
     if (
@@ -339,8 +336,18 @@ def download_huggingface_lora(hf_lora_url: str, output_path: str):
     os.system(f"tar -cvf {output_path} {lora_path}")
 
 
+def calculate_checksum(path):
+    cmd = f"find {path} -type f -exec sha256sum {{}} \\; | sort -k 2 | sha256sum | cut -d' ' -f1"
+    result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+
 def download_weights():
-    if not WEIGHTS_PATH.exists():
+    if WEIGHTS_PATH.exists():
+        print("Dev weights found, calculating checksum")
+        dev_checksum = calculate_checksum(WEIGHTS_PATH)
+        print("CHECKSUM: ", dev_checksum)
+    if not WEIGHTS_PATH.exists() or (dev_checksum != "3d84d0fbacd9c26a0ec9e36748f2760110ee9a5da56a089b10c72dd3735c1ec0"):
         t1 = time.time()
         subprocess.check_output(
             [
