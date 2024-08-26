@@ -98,7 +98,9 @@ def train(
     ),
     lora_rank: int = Input(
         description="Higher ranks take longer to train but can capture more complex features. Caption quality is more important for higher ranks.",
-        default=16, ge=1, le=128
+        default=16,
+        ge=1,
+        le=128,
     ),
     optimizer: str = Input(
         description="Optimizer to use for training. Supports: prodigy, adam8bit, adamw8bit, lion8bit, adam, adamw, lion, adagrad, adafactor.",
