@@ -38,6 +38,10 @@ jobs:
       run: |
         pip install git+https://github.com/replicate/cog-safe-push.git
 
+    - name: Update submodules
+      run: |
+        git submodule update --init --recursive
+
     - name: Run cog-safe-push
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
