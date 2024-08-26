@@ -19,6 +19,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      submodules: true
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -37,10 +38,6 @@ jobs:
     - name: Install cog-safe-push
       run: |
         pip install git+https://github.com/replicate/cog-safe-push.git
-
-    - name: Update submodules
-      run: |
-        git submodule update --init --recursive
 
     - name: Run cog-safe-push
       env:
