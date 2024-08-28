@@ -40,7 +40,21 @@ jobs:
       run: |
         pip install git+https://github.com/replicate/cog-safe-push.git
 
-    - name: Run cog-safe-push
+    - name: Run cog-safe-push to test the trainer
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+      run: |
+        cog-safe-push -vv \
+          --test-model=replicate-internal/test-flux-fine-tuner \
+          --test-only \
+          --train \
+          --training-destination=replicate-internal/test-flux-fine-tuner-dest \
+          -i input_images=https://github.com/andreasjansson/sprites-dataset/raw/main/sprites.zip \
+          -i steps=100 \
+          ostris/flux-dev-lora-trainer
+
+    - name: Run cog-safe-push to test the predictor and optionally push to production
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
@@ -49,7 +63,6 @@ jobs:
           --test-model=replicate-internal/test-flux-fine-tuner \
           ${{ github.event.inputs.test_only == 'true' && '--test-only' || '' }} \
           ${{ github.event.inputs.compare_outputs == 'false' && '--no-compare-outputs' || '' }} \
-          --test-hardware=cpu \
           -i replicate_weights="https://replicate.delivery/yhqm/iWjMZHd2T35kI5jaUkaG3Jb43MeA67PpYjKZQeifvTEf9yTNB/trained_model.tar" \
           -i extra_lora="(omit)^50%" \
           -i extra_lora="fofr/flux-pixar-cars" \
