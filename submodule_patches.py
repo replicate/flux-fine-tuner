@@ -1,4 +1,5 @@
 from torch.utils.data import DataLoader
+
 from llava.model.language_model.llava_llama import LlavaLlamaForCausalLM
 
 
@@ -98,9 +99,10 @@ def patch_llava_forward():
         images=None,
         image_sizes=None,
         return_dict=None,
-        cache_position=None,  # Ignore this argument
+        # Ignore this argument
+        cache_position=None,  # noqa: ARG001
     ):
-        ret = old_forward(
+        return old_forward(
             self,
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -115,6 +117,5 @@ def patch_llava_forward():
             image_sizes=image_sizes,
             return_dict=return_dict,
         )
-        return ret
 
     LlavaLlamaForCausalLM.forward = patched_forward

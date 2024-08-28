@@ -1,26 +1,29 @@
-from dataclasses import dataclass
 import os
-import time
-import torch
 import subprocess
+import time
+from dataclasses import dataclass
 from typing import List
-from cog import BasePredictor, Input, Path
+
 import numpy as np
+import torch
+from cog import BasePredictor, Input, Path
 from diffusers import FluxPipeline
-from transformers import CLIPImageProcessor
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
-from weights import WeightsDownloadCache
+from transformers import CLIPImageProcessor
 
+from weights import WeightsDownloadCache
 
 MODEL_URL_DEV = (
     "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
 )
 MODEL_URL_SCHNELL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-schnell/slim.tar"
-SAFETY_CACHE = "safety-cache"
-FEATURE_EXTRACTOR = "/src/feature-extractor"
 SAFETY_URL = "https://weights.replicate.delivery/default/sdxl/safety-1.0.tar"
+SAFETY_CACHE_PATH = Path("safety-cache")
+FLUX_DEV_PATH = Path("FLUX.1-dev")
+FLUX_SCHNELL_PATH = Path("FLUX.1-schnell")
+FEATURE_EXTRACTOR = Path("/src/feature-extractor")
 
 ASPECT_RATIOS = {
     "1:1": (1024, 1024),
@@ -53,24 +56,24 @@ class Predictor(BasePredictor):
         self.weights_cache = WeightsDownloadCache()
 
         print("Loading safety checker...")
-        if not os.path.exists(SAFETY_CACHE):
-            download_base_weights(SAFETY_URL, SAFETY_CACHE)
+        if not SAFETY_CACHE_PATH.exists():
+            download_base_weights(SAFETY_URL, SAFETY_CACHE_PATH)
         self.safety_checker = StableDiffusionSafetyChecker.from_pretrained(
-            SAFETY_CACHE, torch_dtype=torch.float16
+            SAFETY_CACHE_PATH, torch_dtype=torch.float16
         ).to("cuda")
         self.feature_extractor = CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR)
 
         print("Loading Flux dev pipeline")
-        if not os.path.exists("FLUX.1-dev"):
-            download_base_weights(MODEL_URL_DEV, ".")
+        if not FLUX_DEV_PATH.exists():
+            download_base_weights(MODEL_URL_DEV, Path("."))
         dev_pipe = FluxPipeline.from_pretrained(
             "FLUX.1-dev",
             torch_dtype=torch.bfloat16,
         ).to("cuda")
 
         print("Loading Flux schnell pipeline")
-        if not os.path.exists("FLUX.1-schnell"):
-            download_base_weights(MODEL_URL_SCHNELL, "FLUX.1-schnell")
+        if not FLUX_SCHNELL_PATH.exists():
+            download_base_weights(MODEL_URL_SCHNELL, FLUX_SCHNELL_PATH)
         schnell_pipe = FluxPipeline.from_pretrained(
             "FLUX.1-schnell",
             text_encoder=dev_pipe.text_encoder,
@@ -313,7 +316,7 @@ class Predictor(BasePredictor):
         return ASPECT_RATIOS[aspect_ratio]
 
 
-def download_base_weights(url, dest):
+def download_base_weights(url: str, dest: Path):
     start = time.time()
     print("downloading url: ", url)
     print("downloading to: ", dest)
