@@ -61,7 +61,9 @@ class Predictor(BasePredictor):
         self.safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_CACHE_PATH, torch_dtype=torch.float16
         ).to("cuda")  # pyright: ignore
-        self.feature_extractor = cast(CLIPImageProcessor, CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR))
+        self.feature_extractor = cast(
+            CLIPImageProcessor, CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR)
+        )
 
         print("Loading Flux dev pipeline")
         if not FLUX_DEV_PATH.exists():

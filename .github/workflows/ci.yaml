@@ -24,11 +24,11 @@ jobs:
 
     - name: Run ruff linter
       run: |
-        ruff check --exclude=ai-toolkit/ --exclude=LLaVA/ --ignore=E402
+        ruff check
 
     - name: Run ruff formatter
       run: |
-        ruff format --diff --exclude=ai-toolkit/ --exclude=LLaVA/
+        ruff format --diff
 
   unit-test:
     runs-on: ubuntu-latest
