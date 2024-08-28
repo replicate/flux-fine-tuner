@@ -1,3 +1,9 @@
+import sys
+
+if "LLaVA" not in sys.path:
+    sys.path.append("LLaVA")
+
+
 import os
 import subprocess
 import time
@@ -161,7 +167,7 @@ class Captioner:
             tokenizer_image_token(
                 prompt, self.tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt"
             )
-            .unsqueeze(0)
+            .unsqueeze(0)  # pyright: ignore
             .cuda()
         )
         with torch.inference_mode():

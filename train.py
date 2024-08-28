@@ -20,7 +20,7 @@ from typing import Optional, OrderedDict
 from zipfile import ZipFile, is_zipfile
 
 import torch
-from cog import BaseModel, Input, Path, Secret
+from cog import BaseModel, Input, Path, Secret  # pyright: ignore
 from extensions_built_in.sd_trainer.SDTrainer import SDTrainer
 from huggingface_hub import HfApi
 from jobs import BaseJob
