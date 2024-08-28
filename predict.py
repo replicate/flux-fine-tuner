@@ -147,7 +147,7 @@ class Predictor(BasePredictor):
             default=3.5,
         ),
         seed: int = Input(
-            description="Random seed. Set for reproducible generation", default=None
+            description="Random seed. Set for reproducible generation.", default=None
         ),
         extra_lora: str = Input(
             description="Combine this fine-tune with another LoRA. Supports Replicate models in the format <owner>/<username> or <owner>/<username>/<version>, HuggingFace URLs in the format huggingface.co/<owner>/<model-name>, CivitAI URLs in the format civitai.com/models/<id>[/<model-name>], or arbitrary .safetensors URLs from the Internet. For example, 'fofr/flux-pixar-cars'",
@@ -160,7 +160,7 @@ class Predictor(BasePredictor):
             default=0.8,
         ),
         output_format: str = Input(
-            description="Format of the output images",
+            description="Format of the output images.",
             choices=["webp", "jpg", "png"],
             default="webp",
         ),
