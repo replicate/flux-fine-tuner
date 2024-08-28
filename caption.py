@@ -1,16 +1,17 @@
 import os
-from pathlib import Path
-import requests
-import time
 import subprocess
-from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
-from llava.conversation import conv_templates
-from llava.model.builder import load_pretrained_model
-from llava.utils import disable_torch_init
-from llava.mm_utils import tokenizer_image_token
+import time
+from pathlib import Path
 
+import requests
 import torch
 from PIL import Image
+
+from llava.constants import DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX
+from llava.conversation import conv_templates
+from llava.mm_utils import tokenizer_image_token
+from llava.model.builder import load_pretrained_model
+from llava.utils import disable_torch_init
 
 # url for the weights mirror
 REPLICATE_WEIGHTS_URL = "https://weights.replicate.delivery/default"
@@ -62,13 +63,13 @@ def download_json(url: str, dest: Path):
 
 
 def download_weights(baseurl: str, basedest: str, files: list[str]):
-    basedest = Path(basedest)
+    base_dir = Path(basedest)
     start = time.time()
-    print("downloading to: ", basedest)
-    basedest.mkdir(parents=True, exist_ok=True)
+    print("downloading to: ", base_dir)
+    base_dir.mkdir(parents=True, exist_ok=True)
     for f in files:
-        dest = basedest / f
-        url = os.path.join(REPLICATE_WEIGHTS_URL, baseurl, f)
+        dest = base_dir / f
+        url = f"{REPLICATE_WEIGHTS_URL}/{baseurl}/{f}"
         if not dest.exists():
             print("downloading url: ", url)
             if dest.suffix == ".json":
@@ -106,7 +107,7 @@ class Captioner:
                     yield image_path, caption_path
 
     def all_images_are_captioned(self, image_folder: Path):
-        for image_path, caption_path in self.iter_images_captions(image_folder):
+        for _, caption_path in self.iter_images_captions(image_folder):
             if not caption_path.exists():
                 return False
         return True

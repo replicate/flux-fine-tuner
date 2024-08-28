@@ -12,19 +12,19 @@ from submodule_patches import patch_submodules
 
 patch_submodules()
 
-import sys
-import time
-import torch
-from typing import OrderedDict, Optional
 import shutil
 import subprocess
+import sys
+import time
+from typing import Optional, OrderedDict
 from zipfile import ZipFile, is_zipfile
-from cog import BaseModel, Input, Path, Secret
-from huggingface_hub import HfApi
 
+import torch
+from cog import BaseModel, Input, Path, Secret
+from extensions_built_in.sd_trainer.SDTrainer import SDTrainer
+from huggingface_hub import HfApi
 from jobs import BaseJob
 from toolkit.config import get_config
-from extensions_built_in.sd_trainer.SDTrainer import SDTrainer
 
 from caption import Captioner
 
@@ -127,7 +127,7 @@ def train(
             skip_training_and_use_pretrained_hf_lora_url, output_path
         )
         return TrainingOutput(weights=Path(output_path))
-    elif not input_images:
+    if not input_images:
         raise ValueError("input_images must be provided")
 
     download_weights()
@@ -227,7 +227,7 @@ def train(
     # Optimizer is used to continue training, not needed in output
     optimizer_file = lora_dir / "optimizer.pt"
     if optimizer_file.exists():
-        os.remove(optimizer_file)
+        optimizer_file.unlink()
 
     # Copy generated captions to the output tar
     # But do not upload publicly to HF
@@ -259,11 +259,11 @@ def train(
 
 
 def handle_hf_readme(lora_dir: Path, hf_repo_id: str, trigger_word: Optional[str]):
-    os.system(f"cp lora-license.md {lora_dir}/README.md")
+    readme_path = lora_dir / "README.md"
+    license_path = Path("lora-license.md")
+    shutil.copy(license_path, readme_path)
 
-    with open(f"{lora_dir}/README.md", "r") as f:
-        content = f.read()
-
+    content = readme_path.read_text()
     content = content.replace("[hf_repo_id]", hf_repo_id)
 
     repo_parts = hf_repo_id.split("/")
@@ -287,8 +287,7 @@ def handle_hf_readme(lora_dir: Path, hf_repo_id: str, trigger_word: Optional[str
 
     print(content)
 
-    with open(f"{lora_dir}/README.md", "w") as f:
-        f.write(content)
+    readme_path.write_text(content)
 
 
 def extract_zip(input_images: Path, input_dir: Path):

@@ -1,11 +1,12 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
 import requests_mock
-from unittest.mock import patch, MagicMock
 
 sys.path.append(str(Path(__file__).parent.parent))
-from weights import make_download_url, WeightsDownloadCache
+from weights import WeightsDownloadCache, make_download_url
 
 
 def test_replicate_model_url():
@@ -156,19 +157,19 @@ def test_weights_download_cache(
     path1 = cache.ensure(url1)
     mock_download_weights.assert_called_once_with(url1, path1)
     assert path1.parent == mock_base_dir
-    assert cache._hits == 0
-    assert cache._misses == 1
+    assert cache.hits == 0
+    assert cache.misses == 1
 
     # Second call to same URL should hit cache
     cache.ensure(url1)
-    assert cache._hits == 1
-    assert cache._misses == 1
+    assert cache.hits == 1
+    assert cache.misses == 1
 
     # Call with new URL should download again
     _ = cache.ensure(url2)
     assert mock_download_weights.call_count == 2
-    assert cache._hits == 1
-    assert cache._misses == 2
+    assert cache.hits == 1
+    assert cache.misses == 2
 
     # Test LRU behavior
     url3 = "https://example.com/weights3.tar"

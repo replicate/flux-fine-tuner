@@ -1,17 +1,17 @@
-import os
 import base64
-from io import BytesIO
-import tempfile
-import tarfile
-from pathlib import Path
-import re
-from collections import deque
 import hashlib
+import os
+import re
 import shutil
 import subprocess
+import tarfile
+import tempfile
 import time
-import requests
+from collections import deque
+from io import BytesIO
+from pathlib import Path
 
+import requests
 
 DEFAULT_CACHE_BASE_DIR = Path("/src/weights-cache")
 
@@ -22,8 +22,8 @@ class WeightsDownloadCache:
     ):
         self.min_disk_free = min_disk_free
         self.base_dir = base_dir
-        self._hits = 0
-        self._misses = 0
+        self.hits = 0
+        self.misses = 0
 
         # Least Recently Used (LRU) cache for paths
         self.lru_paths = deque()
@@ -34,10 +34,10 @@ class WeightsDownloadCache:
 
         if path in self.lru_paths:
             # here we remove to re-add to the end of the LRU (marking it as recently used)
-            self._hits += 1
+            self.hits += 1
             self.lru_paths.remove(path)
         else:
-            self._misses += 1
+            self.misses += 1
 
             while not self._has_enough_space() and len(self.lru_paths) > 0:
                 self._remove_least_recent()
@@ -48,7 +48,7 @@ class WeightsDownloadCache:
         return path
 
     def cache_info(self) -> str:
-        return f"CacheInfo(hits={self._hits}, misses={self._misses}, base_dir='{self.base_dir}', currsize={len(self.lru_paths)})"
+        return f"CacheInfo(hits={self.hits}, misses={self.misses}, base_dir='{self.base_dir}', currsize={len(self.lru_paths)})"
 
     def _remove_least_recent(self) -> None:
         oldest = self.lru_paths.popleft()
@@ -84,9 +84,7 @@ def download_weights_url(url: str, path: Path):
         download_data_url(url, path)
     elif url.endswith(".tar"):
         download_safetensors_tarball(url, path)
-    elif url.endswith(".safetensors"):
-        download_safetensors(url, path)
-    elif "://civitai.com/api/download" in url:
+    elif url.endswith(".safetensors") or "://civitai.com/api/download" in url:
         download_safetensors(url, path)
     elif url.endswith("/_weights"):
         download_safetensors_tarball(url, path)
@@ -164,8 +162,7 @@ def make_download_url(url: str) -> str:
     if m := re.match(r"^((?:https?://)?civitai\.com/api/download/models/.*)$", url):
         return url
     if m := re.match(r"^(https?://.*\.safetensors)(?:\?|$)", url):
-        safetensors_url = m.groups()[0]
-        return safetensors_url
+        return m.groups()[0]
     if m := re.match(r"^(?:https?://replicate.com/)?([^/]+)/([^/]+)/?$", url):
         owner, model_name = m.groups()
         return make_replicate_model_download_url(owner, model_name)
@@ -175,8 +172,7 @@ def make_download_url(url: str) -> str:
         owner, model_name, version_id = m.groups()
         return make_replicate_version_download_url(owner, model_name, version_id)
     if m := re.match(r"^(https?://replicate.delivery/.*\.tar)$", url):
-        replicate_tar_url = m.groups()[0]
-        return replicate_tar_url
+        return m.groups()[0]
 
     if "huggingface.co" in url:
         raise ValueError(
@@ -215,7 +211,7 @@ def make_huggingface_download_url(owner: str, model_name: str) -> str:
 
     if len(safetensors_files) == 0:
         raise ValueError("No .safetensors file found in the repository")
-    elif len(safetensors_files) > 1:
+    if len(safetensors_files) > 1:
         raise ValueError("Multiple .safetensors files found in the repository")
 
     safetensors_path = safetensors_files[0]["path"]
