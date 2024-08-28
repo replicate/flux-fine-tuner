@@ -2,12 +2,12 @@ import os
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import List
+from typing import List, cast
 
 import numpy as np
 import torch
 from cog import BasePredictor, Input, Path
-from diffusers import FluxPipeline
+from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
@@ -47,7 +47,7 @@ class LoadedLoRAs:
 
 
 class Predictor(BasePredictor):
-    def setup(self) -> None:
+    def setup(self) -> None:  # pyright: ignore
         """Load the model into memory to make running multiple predictions efficient"""
         start = time.time()
         # Dont pull weights
@@ -60,8 +60,8 @@ class Predictor(BasePredictor):
             download_base_weights(SAFETY_URL, SAFETY_CACHE_PATH)
         self.safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_CACHE_PATH, torch_dtype=torch.float16
-        ).to("cuda")
-        self.feature_extractor = CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR)
+        ).to("cuda")  # pyright: ignore
+        self.feature_extractor = cast(CLIPImageProcessor, CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR))
 
         print("Loading Flux dev pipeline")
         if not FLUX_DEV_PATH.exists():
@@ -95,12 +95,12 @@ class Predictor(BasePredictor):
         print("setup took: ", time.time() - start)
 
     @torch.inference_mode()
-    def predict(
+    def predict(  # pyright: ignore
         self,
         prompt: str = Input(description="Prompt for generated image"),
         aspect_ratio: str = Input(
             description="Aspect ratio for the generated image. The size will always be 1 megapixel, i.e. 1024x1024 if aspect ratio is 1:1. To use arbitrary width and height, set aspect ratio to 'custom'.",
-            choices=list(ASPECT_RATIOS.keys()) + ["custom"],
+            choices=list(ASPECT_RATIOS.keys()) + ["custom"],  # pyright: ignore
             default="1:1",
         ),
         width: int = Input(
@@ -241,12 +241,13 @@ class Predictor(BasePredictor):
 
         output = pipe(**common_args, **flux_kwargs)
 
+        has_nsfw_content = None
         if not disable_safety_checker:
             _, has_nsfw_content = self.run_safety_checker(output.images)
 
         output_paths = []
         for i, image in enumerate(output.images):
-            if not disable_safety_checker and has_nsfw_content[i]:
+            if has_nsfw_content is not None and has_nsfw_content[i]:
                 print(f"NSFW content detected in image {i}")
                 continue
             output_path = f"/tmp/out-{i}.{output_format}"
@@ -300,7 +301,7 @@ class Predictor(BasePredictor):
             main=main_lora_url, extra=extra_lora_url
         )
 
-    @torch.amp.autocast("cuda")
+    @torch.amp.autocast("cuda")  # pyright: ignore
     def run_safety_checker(self, image):
         safety_checker_input = self.feature_extractor(image, return_tensors="pt").to(
             "cuda"
