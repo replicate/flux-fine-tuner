@@ -49,7 +49,7 @@ jobs:
           --test-model=replicate-internal/test-flux-fine-tuner \
           --test-only \
           --train \
-          --training-destination=replicate-internal/test-flux-fine-tuner-dest \
+          --train-destination=replicate-internal/test-flux-fine-tuner-dest \
           -i input_images=https://github.com/andreasjansson/sprites-dataset/raw/main/sprites.zip \
           -i steps=100 \
           ostris/flux-dev-lora-trainer
