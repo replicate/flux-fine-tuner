@@ -100,7 +100,7 @@ class Predictor(BasePredictor):
     def predict(  # pyright: ignore
         self,
         prompt: str = Input(
-            description="Prompt for generated image. Include the `trigger_word` used in the training process to activate the trained object, style, or concept in the resulting image."
+            description="Prompt for generated image. If you include the `trigger_word` used in the training process you are more likely to activate the trained object, style, or concept in the resulting image."
         ),
         aspect_ratio: str = Input(
             description="Aspect ratio for the generated image. The size will always be 1 megapixel, i.e. 1024x1024 if aspect ratio is 1:1. To use arbitrary width and height, set aspect ratio to 'custom'.",
