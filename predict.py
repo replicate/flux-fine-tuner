@@ -132,7 +132,7 @@ class Predictor(BasePredictor):
             ge=-1.0,
         ),
         num_inference_steps: int = Input(
-            description="Number of inference steps. More steps generate more detailed images.",
+            description="Number of inference steps. More steps can give more detailed images, but take longer.",
             ge=1,
             le=50,
             default=28,
