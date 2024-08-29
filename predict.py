@@ -143,7 +143,7 @@ class Predictor(BasePredictor):
             default="dev",
         ),
         guidance_scale: float = Input(
-            description="Guidance scale for the diffusion process. Higher values generate images that are more strictly adherent to the text prompt. Lower values allow for more creative and varied results.",
+            description="Guidance scale for the diffusion process. Lower values can give more realistic images. Good values to try are 2, 2.5, 3 and 3.5",
             ge=0,
             le=10,
             default=3.5,
