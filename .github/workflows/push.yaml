@@ -50,6 +50,7 @@ jobs:
           --test-only \
           --train \
           --train-destination=replicate-internal/test-flux-fine-tuner-dest \
+          --predict-timeout=480 \
           -i input_images=https://github.com/andreasjansson/sprites-dataset/raw/main/sprites.zip \
           -i steps=100 \
           ostris/flux-dev-lora-trainer
