@@ -52,7 +52,7 @@ class Predictor(BasePredictor):
     def setup(self) -> None:  # pyright: ignore
         """Load the model into memory to make running multiple predictions efficient"""
         start = time.time()
-        # Dont pull weights
+        # Don't pull weights
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
         self.weights_cache = WeightsDownloadCache()
@@ -85,7 +85,7 @@ class Predictor(BasePredictor):
             tokenizer=dev_pipe.tokenizer,
             tokenizer_2=dev_pipe.tokenizer_2,
             torch_dtype=torch.bfloat16,
-        ).to("cpu")  # Keep schnell on CPU initially
+        ).to("cuda")
 
         self.pipes = {
             "dev": dev_pipe,
@@ -102,7 +102,7 @@ class Predictor(BasePredictor):
         self.current_model = "dev"
         self.current_inpaint = None
 
-        self.loaded_models = ["safety_checker", "dev"]
+        self.loaded_models = ["safety_checker", "dev", "schnell"]
         print(f"[!] Loaded models: {self.loaded_models}")
 
         print("setup took: ", time.time() - start)
@@ -378,50 +378,37 @@ class Predictor(BasePredictor):
 
         print(f"[~] Configuring active model: {model}, inpaint: {inpaint}")
 
-        # Unload current model if it's different
-        if self.current_model != model:
-            if self.current_model:
-                print(f"[~] Moving {self.current_model} model to CPU...")
-                cpu_start = time.time()
-                self.pipes[self.current_model].to("cpu")
-                print(
-                    f"[!] Moved {self.current_model} to CPU in {time.time() - cpu_start:.2f}s"
-                )
-                self.loaded_models.remove(self.current_model)
+        # Ensure core models are always loaded
+        assert "dev" in self.loaded_models, "dev must always be loaded"
+        assert (
+            "safety_checker" in self.loaded_models
+        ), "safety_checker must always be loaded"
 
-            print(f"[~] Moving {model} model to CUDA...")
-            cuda_start = time.time()
-            self.pipes[model].to("cuda")
-            print(f"[!] Moved {model} to CUDA in {time.time() - cuda_start:.2f}s")
-            self.current_model = model
-            self.loaded_models.append(model)
-
-        # Ensure the model and all its components are on CUDA
-        pipe = self.pipes[model]
-        if pipe.device.type != "cuda":
-            print(f"Moving {model} model to CUDA.")
-            pipe.to("cuda")
-
-        # Explicitly move specific model components to CUDA
-        for component_name in ["unet", "text_encoder", "text_encoder_2", "vae"]:
-            if hasattr(pipe, component_name):
-                component = getattr(pipe, component_name)
-                if isinstance(component, torch.nn.Module):
-                    component.to("cuda")
-
-        # Handle inpainting models
         if inpaint:
-            if self.current_inpaint != model:
-                if self.current_inpaint:
-                    print(f"[~] Moving {self.current_inpaint} inpaint model to CPU...")
-                    cpu_start = time.time()
-                    self.inpaint_pipes[self.current_inpaint].to("cpu")
-                    print(
-                        f"[!] Moved {self.current_inpaint} inpaint to CPU in {time.time() - cpu_start:.2f}s"
-                    )
-                    self.loaded_models.remove(f"{self.current_inpaint}_inpaint")
+            inpaint_model = f"{model}_inpaint"
+            if inpaint_model not in self.loaded_models:
+                # Unload any model in the "swappable seat" (schnell or inpainting models)
+                for model_to_unload in ["schnell", "dev_inpaint", "schnell_inpaint"]:
+                    if (
+                        model_to_unload in self.loaded_models
+                        and model_to_unload != "dev"
+                    ):
+                        print(f"[~] Moving {model_to_unload} to CPU...")
+                        cpu_start = time.time()
+                        # Unload either schnell or an inpainting model
+                        if model_to_unload == "schnell":
+                            self.pipes["schnell"].to("cpu")
+                        else:
+                            self.inpaint_pipes[model_to_unload.split("_")[0]].to("cpu")
+                        print(
+                            f"[!] Moved {model_to_unload} to CPU in {time.time() - cpu_start:.2f}s"
+                        )
+                        self.loaded_models.remove(model_to_unload)
 
+                # Load the required inpainting pipeline
+                print(f"[~] Loading {inpaint_model} pipeline...")
                 if self.inpaint_pipes[model] is None:
+                    # Create a new inpainting pipeline if it doesn't exist
                     print(f"[~] Creating new {model} inpaint pipeline...")
                     create_start = time.time()
                     base_pipe = self.pipes[model]
@@ -437,28 +424,58 @@ class Predictor(BasePredictor):
                         f"[~] Created {model} inpaint pipeline in {time.time() - create_start:.2f}s"
                     )
                 else:
-                    print(f"[~] Moving {model} inpaint model to CUDA...")
+                    # Move existing inpainting pipeline to CUDA
                     cuda_start = time.time()
                     self.inpaint_pipes[model].to("cuda")
                     print(
                         f"[!] Moved {model} inpaint to CUDA in {time.time() - cuda_start:.2f}s"
                     )
-
-                self.current_inpaint = model
-                self.loaded_models.append(f"{model}_inpaint")
+                self.loaded_models.append(inpaint_model)
+            self.current_inpaint = model
         else:
-            if self.current_inpaint:
-                print(f"[~] Moving {self.current_inpaint} inpaint model to CPU...")
-                cpu_start = time.time()
-                self.inpaint_pipes[self.current_inpaint].to("cpu")
-                print(
-                    f"[!] Moved {self.current_inpaint} inpaint to CPU in {time.time() - cpu_start:.2f}s"
-                )
-                self.loaded_models.remove(f"{self.current_inpaint}_inpaint")
-                self.current_inpaint = None
+            # Non-inpainting mode
+            if "schnell" in self.loaded_models:
+                # If schnell is already loaded, no action needed
+                print("Schnell model already loaded")
+                return
 
+            # Unload any inpainting models
+            for inpaint_model in ["dev_inpaint", "schnell_inpaint"]:
+                if inpaint_model in self.loaded_models:
+                    print(f"[~] Moving {inpaint_model} to CPU...")
+                    cpu_start = time.time()
+                    self.inpaint_pipes[inpaint_model.split("_")[0]].to("cpu")
+                    print(
+                        f"[!] Moved {inpaint_model} to CPU in {time.time() - cpu_start:.2f}s"
+                    )
+                    self.loaded_models.remove(inpaint_model)
+
+            # Load schnell model
+            print("[~] Moving schnell model to CUDA...")
+            cuda_start = time.time()
+            self.pipes["schnell"].to("cuda")
+            print(f"[!] Moved schnell to CUDA in {time.time() - cuda_start:.2f}s")
+            self.loaded_models.append("schnell")
+            self.current_inpaint = None
+
+        self.current_model = model
+
+        # Ensure all model components are on the correct device
+        pipe = self.pipes[model] if not inpaint else self.inpaint_pipes[model]
+        component_start = time.time()
+        for component_name in ["unet", "text_encoder", "text_encoder_2", "vae"]:
+            if hasattr(pipe, component_name):
+                component = getattr(pipe, component_name)
+                if isinstance(component, torch.nn.Module):
+                    component.to("cuda")
+        print(
+            f"[!] Moved model components to CUDA in {time.time() - component_start:.2f}s"
+        )
+
+        # Clear CUDA cache to free up memory
         torch.cuda.empty_cache()
 
+        # Log changes in loaded models
         if set(self.loaded_models) != initial_models:
             print(f"[!] Loaded models: {self.loaded_models}")
         print(
