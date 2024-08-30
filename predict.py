@@ -80,6 +80,7 @@ class Predictor(BasePredictor):
             download_base_weights(MODEL_URL_SCHNELL, FLUX_SCHNELL_PATH)
         schnell_pipe = FluxPipeline.from_pretrained(
             "FLUX.1-schnell",
+            vae=dev_pipe.vae,
             text_encoder=dev_pipe.text_encoder,
             text_encoder_2=dev_pipe.text_encoder_2,
             tokenizer=dev_pipe.tokenizer,
@@ -91,20 +92,48 @@ class Predictor(BasePredictor):
             "dev": dev_pipe,
             "schnell": schnell_pipe,
         }
+
+        # Load inpainting pipelines
+        print("Loading Flux dev inpaint pipeline")
+        dev_inpaint_pipe = FluxInpaintPipeline(
+            transformer=dev_pipe.transformer,
+            scheduler=dev_pipe.scheduler,
+            vae=dev_pipe.vae,
+            text_encoder=dev_pipe.text_encoder,
+            text_encoder_2=dev_pipe.text_encoder_2,
+            tokenizer=dev_pipe.tokenizer,
+            tokenizer_2=dev_pipe.tokenizer_2,
+        ).to("cuda")
+
+        print("Loading Flux schnell inpaint pipeline")
+        schnell_inpaint_pipe = FluxInpaintPipeline(
+            transformer=schnell_pipe.transformer,
+            scheduler=schnell_pipe.scheduler,
+            vae=schnell_pipe.vae,
+            text_encoder=schnell_pipe.text_encoder,
+            text_encoder_2=schnell_pipe.text_encoder_2,
+            tokenizer=schnell_pipe.tokenizer,
+            tokenizer_2=schnell_pipe.tokenizer_2,
+        ).to("cuda")
+
+        self.inpaint_pipes = {
+            "dev": dev_inpaint_pipe,
+            "schnell": schnell_inpaint_pipe,
+        }
+
         self.loaded_lora_urls = {
             "dev": LoadedLoRAs(main=None, extra=None),
             "schnell": LoadedLoRAs(main=None, extra=None),
         }
-        self.inpaint_pipes = {
-            "dev": None,
-            "schnell": None,
-        }
-        self.current_model = "dev"
-        self.current_inpaint = None
 
-        self.loaded_models = ["safety_checker", "dev", "schnell"]
+        self.loaded_models = [
+            "safety_checker",
+            "dev",
+            "schnell",
+            "dev_inpaint",
+            "schnell_inpaint",
+        ]
         print(f"[!] Loaded models: {self.loaded_models}")
-
         print("setup took: ", time.time() - start)
 
     @torch.inference_mode()
@@ -225,7 +254,6 @@ class Predictor(BasePredictor):
         print(f"Prompt: {prompt}")
 
         inpaint_mode = image is not None and mask is not None
-        self.configure_active_model(model, inpaint_mode)
 
         if inpaint_mode:
             print("inpaint mode")
@@ -240,7 +268,6 @@ class Predictor(BasePredictor):
             print(f"Using {model} model for inpainting")
             pipe = self.inpaint_pipes[model]
         else:
-            # TODO add img2img mode (when we have just image and not mask)
             print("txt2img mode")
             pipe = self.pipes[model]
 
@@ -249,8 +276,6 @@ class Predictor(BasePredictor):
         if replicate_weights:
             flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
 
-        # Avoid a footgun in case we update the model input but forget to
-        # update clauses in this if statement
         assert model in ["dev", "schnell"]
         if model == "dev":
             print("Using dev model")
@@ -278,15 +303,7 @@ class Predictor(BasePredictor):
             pipe.unload_lora_weights()
             self.loaded_lora_urls[model] = LoadedLoRAs(main=None, extra=None)
 
-        # Ensure all model components are on the correct device
-        device = pipe.device
-        for component_name in ["unet", "text_encoder", "text_encoder_2", "vae"]:
-            if hasattr(pipe, component_name):
-                component = getattr(pipe, component_name)
-                if isinstance(component, torch.nn.Module):
-                    component.to(device)
-
-        generator = torch.Generator(device=device).manual_seed(seed)
+        generator = torch.Generator(device="cuda").manual_seed(seed)
 
         common_args = {
             "prompt": [prompt] * num_outputs,
@@ -373,116 +390,6 @@ class Predictor(BasePredictor):
 
     def aspect_ratio_to_width_height(self, aspect_ratio: str) -> tuple[int, int]:
         return ASPECT_RATIOS[aspect_ratio]
-
-    def configure_active_model(self, model: str, inpaint: bool = False):
-        start_time = time.time()
-        initial_models = set(self.loaded_models)
-
-        print(f"[~] Configuring active model: {model}, inpaint: {inpaint}")
-
-        # Ensure core models are always loaded
-        assert "dev" in self.loaded_models, "dev must always be loaded"
-        assert (
-            "safety_checker" in self.loaded_models
-        ), "safety_checker must always be loaded"
-
-        if inpaint:
-            inpaint_model = f"{model}_inpaint"
-            if inpaint_model not in self.loaded_models:
-                # Unload any model in the "swappable seat" (schnell or inpainting models)
-                for model_to_unload in ["schnell", "dev_inpaint", "schnell_inpaint"]:
-                    if (
-                        model_to_unload in self.loaded_models
-                        and model_to_unload != "dev"
-                    ):
-                        print(f"[~] Moving {model_to_unload} to CPU...")
-                        cpu_start = time.time()
-                        # Unload either schnell or an inpainting model
-                        if model_to_unload == "schnell":
-                            self.pipes["schnell"].to("cpu")
-                        else:
-                            self.inpaint_pipes[model_to_unload.split("_")[0]].to("cpu")
-                        print(
-                            f"[!] Moved {model_to_unload} to CPU in {time.time() - cpu_start:.2f}s"
-                        )
-                        self.loaded_models.remove(model_to_unload)
-
-                # Load the required inpainting pipeline
-                print(f"[~] Loading {inpaint_model} pipeline...")
-                if self.inpaint_pipes[model] is None:
-                    # Create a new inpainting pipeline if it doesn't exist
-                    print(f"[~] Creating new {model} inpaint pipeline...")
-                    create_start = time.time()
-                    base_pipe = self.pipes[model]
-                    self.inpaint_pipes[model] = FluxInpaintPipeline.from_pretrained(
-                        f"FLUX.1-{model}",
-                        text_encoder=base_pipe.text_encoder,
-                        text_encoder_2=base_pipe.text_encoder_2,
-                        tokenizer=base_pipe.tokenizer,
-                        tokenizer_2=base_pipe.tokenizer_2,
-                        torch_dtype=torch.bfloat16,
-                    ).to("cuda")
-                    print(
-                        f"[~] Created {model} inpaint pipeline in {time.time() - create_start:.2f}s"
-                    )
-                else:
-                    # Move existing inpainting pipeline to CUDA
-                    cuda_start = time.time()
-                    self.inpaint_pipes[model].to("cuda")
-                    print(
-                        f"[!] Moved {model} inpaint to CUDA in {time.time() - cuda_start:.2f}s"
-                    )
-                self.loaded_models.append(inpaint_model)
-            self.current_inpaint = model
-        else:
-            # Non-inpainting mode
-            if "schnell" in self.loaded_models:
-                # If schnell is already loaded, no action needed
-                print("Schnell model already loaded")
-                return
-
-            # Unload any inpainting models
-            for inpaint_model in ["dev_inpaint", "schnell_inpaint"]:
-                if inpaint_model in self.loaded_models:
-                    print(f"[~] Moving {inpaint_model} to CPU...")
-                    cpu_start = time.time()
-                    self.inpaint_pipes[inpaint_model.split("_")[0]].to("cpu")
-                    print(
-                        f"[!] Moved {inpaint_model} to CPU in {time.time() - cpu_start:.2f}s"
-                    )
-                    self.loaded_models.remove(inpaint_model)
-
-            # Load schnell model
-            print("[~] Moving schnell model to CUDA...")
-            cuda_start = time.time()
-            self.pipes["schnell"].to("cuda")
-            print(f"[!] Moved schnell to CUDA in {time.time() - cuda_start:.2f}s")
-            self.loaded_models.append("schnell")
-            self.current_inpaint = None
-
-        self.current_model = model
-
-        # Ensure all model components are on the correct device
-        pipe = self.pipes[model] if not inpaint else self.inpaint_pipes[model]
-        component_start = time.time()
-        for component_name in ["unet", "text_encoder", "text_encoder_2", "vae"]:
-            if hasattr(pipe, component_name):
-                component = getattr(pipe, component_name)
-                if isinstance(component, torch.nn.Module):
-                    component.to("cuda")
-        print(
-            f"[!] Moved model components to CUDA in {time.time() - component_start:.2f}s"
-        )
-
-        # Clear CUDA cache to free up memory
-        torch.cuda.empty_cache()
-
-        # Log changes in loaded models
-        if set(self.loaded_models) != initial_models:
-            print(f"[!] Loaded models: {self.loaded_models}")
-        print(
-            f"[!] Total time for configure_active_model: {time.time() - start_time:.2f}s"
-        )
 
     def resize_image_dimensions(
         self,
