@@ -253,7 +253,7 @@ class Predictor(BasePredictor):
         if model == "dev":
             print("Using dev model")
             max_sequence_length = 512
-        else: # model == "schnell":
+        else:  # model == "schnell":
             print("Using schnell model")
             max_sequence_length = 256
             guidance_scale = 0
@@ -278,7 +278,7 @@ class Predictor(BasePredictor):
 
         # Ensure all model components are on the correct device
         device = pipe.device
-        for component_name in ['unet', 'text_encoder', 'text_encoder_2', 'vae']:
+        for component_name in ["unet", "text_encoder", "text_encoder_2", "vae"]:
             if hasattr(pipe, component_name):
                 component = getattr(pipe, component_name)
                 if isinstance(component, torch.nn.Module):
@@ -373,15 +373,26 @@ class Predictor(BasePredictor):
         return ASPECT_RATIOS[aspect_ratio]
 
     def configure_active_model(self, model: str, inpaint: bool = False):
+        start_time = time.time()
         initial_models = set(self.loaded_models)
+
+        print(f"[~] Configuring active model: {model}, inpaint: {inpaint}")
 
         # Unload current model if it's different
         if self.current_model != model:
             if self.current_model:
+                print(f"[~] Moving {self.current_model} model to CPU...")
+                cpu_start = time.time()
                 self.pipes[self.current_model].to("cpu")
+                print(
+                    f"[!] Moved {self.current_model} to CPU in {time.time() - cpu_start:.2f}s"
+                )
                 self.loaded_models.remove(self.current_model)
-            
+
+            print(f"[~] Moving {model} model to CUDA...")
+            cuda_start = time.time()
             self.pipes[model].to("cuda")
+            print(f"[!] Moved {model} to CUDA in {time.time() - cuda_start:.2f}s")
             self.current_model = model
             self.loaded_models.append(model)
 
@@ -390,9 +401,9 @@ class Predictor(BasePredictor):
         if pipe.device.type != "cuda":
             print(f"Moving {model} model to CUDA.")
             pipe.to("cuda")
-        
+
         # Explicitly move specific model components to CUDA
-        for component_name in ['unet', 'text_encoder', 'text_encoder_2', 'vae']:
+        for component_name in ["unet", "text_encoder", "text_encoder_2", "vae"]:
             if hasattr(pipe, component_name):
                 component = getattr(pipe, component_name)
                 if isinstance(component, torch.nn.Module):
@@ -402,10 +413,17 @@ class Predictor(BasePredictor):
         if inpaint:
             if self.current_inpaint != model:
                 if self.current_inpaint:
+                    print(f"[~] Moving {self.current_inpaint} inpaint model to CPU...")
+                    cpu_start = time.time()
                     self.inpaint_pipes[self.current_inpaint].to("cpu")
+                    print(
+                        f"[!] Moved {self.current_inpaint} inpaint to CPU in {time.time() - cpu_start:.2f}s"
+                    )
                     self.loaded_models.remove(f"{self.current_inpaint}_inpaint")
 
                 if self.inpaint_pipes[model] is None:
+                    print(f"[~] Creating new {model} inpaint pipeline...")
+                    create_start = time.time()
                     base_pipe = self.pipes[model]
                     self.inpaint_pipes[model] = FluxInpaintPipeline.from_pretrained(
                         f"FLUX.1-{model}",
@@ -415,14 +433,27 @@ class Predictor(BasePredictor):
                         tokenizer_2=base_pipe.tokenizer_2,
                         torch_dtype=torch.bfloat16,
                     ).to("cuda")
+                    print(
+                        f"[~] Created {model} inpaint pipeline in {time.time() - create_start:.2f}s"
+                    )
                 else:
+                    print(f"[~] Moving {model} inpaint model to CUDA...")
+                    cuda_start = time.time()
                     self.inpaint_pipes[model].to("cuda")
+                    print(
+                        f"[!] Moved {model} inpaint to CUDA in {time.time() - cuda_start:.2f}s"
+                    )
 
                 self.current_inpaint = model
                 self.loaded_models.append(f"{model}_inpaint")
         else:
             if self.current_inpaint:
+                print(f"[~] Moving {self.current_inpaint} inpaint model to CPU...")
+                cpu_start = time.time()
                 self.inpaint_pipes[self.current_inpaint].to("cpu")
+                print(
+                    f"[!] Moved {self.current_inpaint} inpaint to CPU in {time.time() - cpu_start:.2f}s"
+                )
                 self.loaded_models.remove(f"{self.current_inpaint}_inpaint")
                 self.current_inpaint = None
 
@@ -430,7 +461,10 @@ class Predictor(BasePredictor):
 
         if set(self.loaded_models) != initial_models:
             print(f"[!] Loaded models: {self.loaded_models}")
-    
+        print(
+            f"[!] Total time for configure_active_model: {time.time() - start_time:.2f}s"
+        )
+
     def resize_image_dimensions(
         self,
         original_resolution_wh: Tuple[int, int],
