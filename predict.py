@@ -1,8 +1,12 @@
+import cProfile
+import io
 import os
+import pstats
 import subprocess
 import time
 from dataclasses import dataclass
 from typing import List, cast, Tuple
+import zipfile
 
 import numpy as np
 import torch
@@ -225,7 +229,7 @@ class Predictor(BasePredictor):
             ge=0,
             le=100,
         ),
-        replicate_weights: str = Input(
+        replicate_great_weights: str = Input(
             description="Replicate LoRA weights to use. Leave blank to use the default weights.",
             default=None,
         ),
@@ -273,7 +277,7 @@ class Predictor(BasePredictor):
 
         flux_kwargs["width"] = width
         flux_kwargs["height"] = height
-        if replicate_weights:
+        if replicate_great_weights:
             flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
 
         assert model in ["dev", "schnell"]
@@ -285,20 +289,33 @@ class Predictor(BasePredictor):
             max_sequence_length = 256
             guidance_scale = 0
 
-        if replicate_weights:
+        if replicate_great_weights:
             start_time = time.time()
+            print("profiling")
+            pr = cProfile.Profile()
+            pr.enable()
             if extra_lora:
                 flux_kwargs["joint_attention_kwargs"] = {"scale": 1.0}
                 print(f"Loading extra LoRA weights from: {extra_lora}")
-                self.load_multiple_loras(replicate_weights, extra_lora, model)
+                self.load_multiple_loras(replicate_great_weights, extra_lora, model)
                 pipe.set_adapters(
                     ["main", "extra"], adapter_weights=[lora_scale, extra_lora_scale]
                 )
             else:
                 flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
-                self.load_single_lora(replicate_weights, model)
+                self.load_single_lora(replicate_great_weights, model)
                 pipe.set_adapters(["main"], adapter_weights=[lora_scale])
             print(f"Loaded LoRAs in {time.time() - start_time:.2f}s")
+            print("writing profiler output")
+            pr.disable()
+            output_prof = "output_profile.prof"
+            output_zip = "profile.zip"
+            s = io.StringIO()
+            ps = pstats.Stats(pr, stream=s).sort_stats("cumulative")
+            ps.print_stats()
+            pr.dump_stats(output_prof)
+            with zipfile.ZipFile(output_zip, "w") as f:
+                f.write(output_prof, os.path.basename(output_prof))
         else:
             pipe.unload_lora_weights()
             self.loaded_lora_urls[model] = LoadedLoRAs(main=None, extra=None)
@@ -336,6 +353,9 @@ class Predictor(BasePredictor):
             raise Exception(
                 "NSFW content detected. Try running it again, or try a different prompt."
             )
+
+        if replicate_great_weights:
+            output_paths.append(Path(output_zip))
 
         return output_paths
 
