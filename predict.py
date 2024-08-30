@@ -110,7 +110,9 @@ class Predictor(BasePredictor):
     @torch.inference_mode()
     def predict(  # pyright: ignore
         self,
-        prompt: str = Input(description="Prompt for generated image"),
+        prompt: str = Input(
+            description="Prompt for generated image. If you include the `trigger_word` used in the training process you are more likely to activate the trained object, style, or concept in the resulting image."
+        ),
         image: Path = Input(
             description="Input image for img2img or inpaint mode", default=None
         ),
@@ -148,7 +150,7 @@ class Predictor(BasePredictor):
             ge=-1.0,
         ),
         num_inference_steps: int = Input(
-            description="Number of inference steps",
+            description="Number of inference steps. More steps can give more detailed images, but take longer.",
             ge=1,
             le=50,
             default=28,
@@ -159,7 +161,7 @@ class Predictor(BasePredictor):
             default="dev",
         ),
         guidance_scale: float = Input(
-            description="Guidance scale for the diffusion process",
+            description="Guidance scale for the diffusion process. Lower values can give more realistic images. Good values to try are 2, 2.5, 3 and 3.5",
             ge=0,
             le=10,
             default=3.5,
@@ -171,7 +173,7 @@ class Predictor(BasePredictor):
             default=0.8,
         ),
         seed: int = Input(
-            description="Random seed. Set for reproducible generation", default=None
+            description="Random seed. Set for reproducible generation.", default=None
         ),
         extra_lora: str = Input(
             description="Combine this fine-tune with another LoRA. Supports Replicate models in the format <owner>/<username> or <owner>/<username>/<version>, HuggingFace URLs in the format huggingface.co/<owner>/<model-name>, CivitAI URLs in the format civitai.com/models/<id>[/<model-name>], or arbitrary .safetensors URLs from the Internet. For example, 'fofr/flux-pixar-cars'",
@@ -184,7 +186,7 @@ class Predictor(BasePredictor):
             default=0.8,
         ),
         output_format: str = Input(
-            description="Format of the output images",
+            description="Format of the output images.",
             choices=["webp", "jpg", "png"],
             default="webp",
         ),
