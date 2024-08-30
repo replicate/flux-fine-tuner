@@ -9,7 +9,11 @@ on:
         type: boolean
         default: true
       compare_outputs:
-        description: 'Compare outputs between existing version and new version'
+        description: 'Compare hotswap prediction outputs between existing version and new version'
+        type: boolean
+        default: true
+      compare_trainer_outputs:
+        description: 'Compare training outputs between existing version and new version'
         type: boolean
         default: true
 
@@ -41,6 +45,7 @@ jobs:
         pip install git+https://github.com/replicate/cog-safe-push.git
 
     - name: Run cog-safe-push to test the trainer
+      if: ${{ github.event.inputs.compare_trainer_outputs = 'true' }}
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
