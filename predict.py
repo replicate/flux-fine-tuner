@@ -210,9 +210,9 @@ class Predictor(BasePredictor):
         ),
         extra_lora_scale: float = Input(
             description="Determines how strongly the extra LoRA should be applied.",
-            ge=0,
-            le=1,
-            default=0.8,
+            default=1.0,
+            le=2.0,
+            ge=-1.0,
         ),
         output_format: str = Input(
             description="Format of the output images.",
