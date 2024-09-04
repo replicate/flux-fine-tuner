@@ -178,7 +178,7 @@ def train(
         ge=1,
     ),
     wandb_sample_prompts: str = Input(
-        description="Semicolon-separated list of prompts to use when logging samples to W&B. Only applicable if wandb_api_key is set.",
+        description="Newline-separated list of prompts to use when logging samples to W&B. Only applicable if wandb_api_key is set.",
         default=None,
     ),
     wandb_save_interval: int = Input(
@@ -204,7 +204,7 @@ def train(
 
     sample_prompts = []
     if wandb_sample_prompts:
-        sample_prompts = [p.strip() for p in wandb_sample_prompts.split(";")]
+        sample_prompts = [p.strip() for p in wandb_sample_prompts.split("\n")]
 
     wandb_client = None
     if wandb_api_key:
