@@ -8,9 +8,11 @@ import numpy as np
 import torch
 from PIL import Image
 from cog import BasePredictor, Input, Path
-from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
-from diffusers.pipelines.flux.pipeline_flux_inpaint import FluxInpaintPipeline
-from diffusers.pipelines.flux.pipeline_flux_img2img import FluxImg2ImgPipeline
+from diffusers.pipelines.flux import (
+    FluxPipeline,
+    FluxInpaintPipeline,
+    FluxImg2ImgPipeline,
+)
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
@@ -279,7 +281,6 @@ class Predictor(BasePredictor):
         if is_img2img_mode:
             print("[!] img2img mode")
             input_image = Image.open(image).convert("RGB")
-            # Calculate new dimensions based on input image
             resized_width, resized_height = self.resize_image_dimensions(
                 input_image.size
             )
@@ -293,7 +294,6 @@ class Predictor(BasePredictor):
             print("[!] inpaint mode")
             input_image = Image.open(image).convert("RGB")
             mask_image = Image.open(mask).convert("RGB")
-            # Calculate new dimensions based on input image
             resized_width, resized_height = self.resize_image_dimensions(
                 input_image.size
             )
