@@ -113,14 +113,14 @@ def train(
         default="adamw8bit",
     ),
     hf_repo_id: str = Input(
-        description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora.",
+        description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora. If the given repo does not exist, a new public repo will be created.",
         default=None,
     ),
     hf_token: Secret = Input(
         description="Hugging Face token, if you'd like to upload the trained LoRA to Hugging Face.",
         default=None,
     ),
-    skip_training_and_use_pretrained_hf_lora_url: str = Input(
+    skip_training_and_use_pretrained_hf_lora_url: Optional[str] = Input(
         description="If you’d like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that’s on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
         default=None,
     ),
@@ -252,6 +252,16 @@ def train(
             handle_hf_readme(lora_dir, hf_repo_id, trigger_word)
             print(f"Uploading to Hugging Face: {hf_repo_id}")
             api = HfApi()
+
+            repo_url = api.create_repo(
+                hf_repo_id,
+                private=False,
+                exist_ok=True,
+                token=hf_token.get_secret_value(),
+            )
+
+            print(f"HF Repo URL: {repo_url}")
+
             api.upload_folder(
                 repo_id=hf_repo_id,
                 folder_path=lora_dir,
