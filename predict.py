@@ -166,9 +166,7 @@ class Predictor(BasePredictor):
         prompt: str = Input(
             description="Prompt for generated image. If you include the `trigger_word` used in the training process you are more likely to activate the trained object, style, or concept in the resulting image."
         ),
-        image: Path = Input(
-            description="Input image for inpaint mode", default=None
-        ),
+        image: Path = Input(description="Input image for inpaint mode", default=None),
         mask: Path = Input(
             description="Input mask for inpaint mode. Black areas will be preserved, white areas will be inpainted.",
             default=None,
