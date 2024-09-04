@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, Sequence
+from contextlib import suppress
 import wandb
 from wandb.sdk.wandb_settings import Settings
 
@@ -40,4 +41,5 @@ class WeightsAndBiasesClient:
         wandb.save(lora_path)
 
     def finish(self):
-        wandb.finish()
+        with suppress(Exception):
+            wandb.finish()
