@@ -167,7 +167,7 @@ class Predictor(BasePredictor):
             description="Prompt for generated image. If you include the `trigger_word` used in the training process you are more likely to activate the trained object, style, or concept in the resulting image."
         ),
         image: Path = Input(
-            description="Input image for img2img or inpaint mode", default=None
+            description="Input image for inpaint mode", default=None
         ),
         mask: Path = Input(
             description="Input mask for inpaint mode. Black areas will be preserved, white areas will be inpainted.",
@@ -220,7 +220,7 @@ class Predictor(BasePredictor):
             default=3.5,
         ),
         prompt_strength: float = Input(
-            description="Strength for img2img or inpaint. 1.0 corresponds to full destruction of information in image",
+            description="Strength for inpainting. 1.0 corresponds to full destruction of information in image",
             ge=0.0,
             le=1.0,
             default=0.8,
