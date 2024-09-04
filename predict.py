@@ -280,7 +280,9 @@ class Predictor(BasePredictor):
             print("[!] img2img mode")
             input_image = Image.open(image).convert("RGB")
             # Calculate new dimensions based on input image
-            resized_width, resized_height = self.resize_image_dimensions(input_image.size)
+            resized_width, resized_height = self.resize_image_dimensions(
+                input_image.size
+            )
             # Override width and height
             width, height = resized_width, resized_height
             flux_kwargs["image"] = input_image.resize((width, height), Image.LANCZOS)
@@ -292,7 +294,9 @@ class Predictor(BasePredictor):
             input_image = Image.open(image).convert("RGB")
             mask_image = Image.open(mask).convert("RGB")
             # Calculate new dimensions based on input image
-            resized_width, resized_height = self.resize_image_dimensions(input_image.size)
+            resized_width, resized_height = self.resize_image_dimensions(
+                input_image.size
+            )
             # Override width and height
             width, height = resized_width, resized_height
             flux_kwargs["image"] = input_image.resize((width, height), Image.LANCZOS)
