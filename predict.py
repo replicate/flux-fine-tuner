@@ -292,7 +292,7 @@ class Predictor(BasePredictor):
             right = left + width
             bottom = top + height
             flux_kwargs["image"] = input_image.crop((left, top, right, bottom))
-            
+
             if is_img2img_mode:
                 print("[!] img2img mode")
                 flux_kwargs["strength"] = prompt_strength
