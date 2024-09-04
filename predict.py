@@ -6,6 +6,7 @@ from typing import List, cast, Tuple
 
 import numpy as np
 import torch
+import logging
 from PIL import Image
 from cog import BasePredictor, Input, Path
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
@@ -50,6 +51,10 @@ ASPECT_RATIOS = {
     "9:16": (768, 1344),
     "9:21": (640, 1536),
 }
+
+# Suppress diffusers nsfw warnings
+logging.getLogger("diffusers").setLevel(logging.CRITICAL)
+logging.getLogger("transformers").setLevel(logging.CRITICAL)
 
 
 @dataclass
