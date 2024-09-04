@@ -184,4 +184,5 @@ liuhaotian/
 openai/
 input_images/
 safety-cache/
+falcon-cache/
 output/
