@@ -13,7 +13,11 @@ from diffusers.pipelines.flux.pipeline_flux_inpaint import FluxInpaintPipeline
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
-from transformers import CLIPImageProcessor
+from transformers import (
+    CLIPImageProcessor,
+    AutoModelForImageClassification,
+    ViTImageProcessor,
+)
 
 from weights import WeightsDownloadCache
 
@@ -26,6 +30,12 @@ SAFETY_CACHE_PATH = Path("safety-cache")
 FLUX_DEV_PATH = Path("FLUX.1-dev")
 FLUX_SCHNELL_PATH = Path("FLUX.1-schnell")
 FEATURE_EXTRACTOR = Path("/src/feature-extractor")
+
+FALCON_MODEL_NAME = "Falconsai/nsfw_image_detection"
+FALCON_MODEL_CACHE = "falcon-cache"
+FALCON_MODEL_URL = (
+    "https://weights.replicate.delivery/default/falconai/nsfw-image-detection.tar"
+)
 
 ASPECT_RATIOS = {
     "1:1": (1024, 1024),
@@ -62,10 +72,21 @@ class Predictor(BasePredictor):
             download_base_weights(SAFETY_URL, SAFETY_CACHE_PATH)
         self.safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_CACHE_PATH, torch_dtype=torch.float16
-        ).to("cuda")  # pyright: ignore
+        ).to(
+            "cuda"
+        )  # pyright: ignore
         self.feature_extractor = cast(
             CLIPImageProcessor, CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR)
         )
+
+        print("Loading Falcon safety checker...")
+        if not Path(FALCON_MODEL_CACHE).exists():
+            download_base_weights(FALCON_MODEL_URL, FALCON_MODEL_CACHE)
+        self.falcon_model = AutoModelForImageClassification.from_pretrained(
+            FALCON_MODEL_NAME,
+            cache_dir=FALCON_MODEL_CACHE,
+        )
+        self.falcon_processor = ViTImageProcessor.from_pretrained(FALCON_MODEL_NAME)
 
         print("Loading Flux dev pipeline")
         if not FLUX_DEV_PATH.exists():
@@ -323,8 +344,14 @@ class Predictor(BasePredictor):
         output_paths = []
         for i, image in enumerate(output.images):
             if has_nsfw_content is not None and has_nsfw_content[i]:
-                print(f"NSFW content detected in image {i}")
-                continue
+                try:
+                    falcon_is_safe = self.run_falcon_safety_checker(image)
+                except Exception as e:
+                    print(f"Error running safety checker: {e}")
+                    falcon_is_safe = False
+                if not falcon_is_safe:
+                    print(f"NSFW content detected in image {i}")
+                    continue
             output_path = f"/tmp/out-{i}.{output_format}"
             if output_format != "png":
                 image.save(output_path, quality=output_quality, optimize=True)
@@ -387,6 +414,17 @@ class Predictor(BasePredictor):
             clip_input=safety_checker_input.pixel_values.to(torch.float16),
         )
         return image, has_nsfw_concept
+
+    @torch.amp.autocast("cuda")  # pyright: ignore
+    def run_falcon_safety_checker(self, image):
+        with torch.no_grad():
+            inputs = self.falcon_processor(images=image, return_tensors="pt")
+            outputs = self.falcon_model(**inputs)
+            logits = outputs.logits
+            predicted_label = logits.argmax(-1).item()
+            result = self.falcon_model.config.id2label[predicted_label]
+
+        return result == "normal"
 
     def aspect_ratio_to_width_height(self, aspect_ratio: str) -> tuple[int, int]:
         return ASPECT_RATIOS[aspect_ratio]
