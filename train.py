@@ -102,6 +102,12 @@ def train(
         ge=1,
         le=128,
     ),
+    caption_dropout_rate: float = Input(
+        description="Advanced setting. Determines how often a caption is ignored. 0.05 means for 5% of all steps an image will be used without its caption. 0 means always use captions, while 1 means never use them. Dropping captions helps capture more details of an image, and can prevent over-fitting words with specific image elements. Try higher values when training a style.",
+        default=0.05,
+        ge=0,
+        le=1,
+    ),
     optimizer: str = Input(
         description="Optimizer to use for training. Supports: prodigy, adam8bit, adamw8bit, lion8bit, adam, adamw, lion, adagrad, adafactor.",
         default="adamw8bit",
@@ -158,7 +164,7 @@ def train(
                             {
                                 "folder_path": str(INPUT_DIR),
                                 "caption_ext": "txt",
-                                "caption_dropout_rate": 0.05,
+                                "caption_dropout_rate": caption_dropout_rate,
                                 "shuffle_tokens": False,
                                 "cache_latents_to_disk": True,
                                 "resolution": [
