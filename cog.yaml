@@ -50,7 +50,7 @@ build:
     - "numpy==1.26.0"
     - "shortuuid==1.0.11"
     - "tokenizers==0.19"
-    - "wandb==0.15.12"
+    - "wandb==0.17.8"
     - "wavedrom==2.0.3.post3"
     - "Pygments==2.16.1"
   run:
