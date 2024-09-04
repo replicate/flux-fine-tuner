@@ -9,7 +9,8 @@ import torch
 from PIL import Image
 from cog import BasePredictor, Input, Path
 from diffusers.pipelines.flux.pipeline_flux import FluxPipeline
-from diffusers.pipelines.flux.pipeline_flux_inpaint import FluxInpaintPipeline, FluxImg2ImgPipeline
+from diffusers.pipelines.flux.pipeline_flux_inpaint import FluxInpaintPipeline
+from diffusers.pipelines.flux.pipeline_flux_img2img import FluxImg2ImgPipeline
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
