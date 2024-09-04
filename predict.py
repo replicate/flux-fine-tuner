@@ -278,35 +278,34 @@ class Predictor(BasePredictor):
         flux_kwargs = {}
         print(f"Prompt: {prompt}")
 
-        if is_img2img_mode:
-            print("[!] img2img mode")
+        if is_img2img_mode or is_inpaint_mode:
             input_image = Image.open(image).convert("RGB")
             resized_width, resized_height = self.resize_image_dimensions(
                 input_image.size
             )
-            # Override width and height
-            width, height = resized_width, resized_height
-            flux_kwargs["image"] = input_image.resize((width, height), Image.LANCZOS)
-            flux_kwargs["strength"] = prompt_strength
-            print(f"Using {model} model for img2img")
-            pipe = self.img2img_pipes[model]
-        elif is_inpaint_mode:
-            print("[!] inpaint mode")
-            input_image = Image.open(image).convert("RGB")
-            mask_image = Image.open(mask).convert("RGB")
-            resized_width, resized_height = self.resize_image_dimensions(
-                input_image.size
-            )
-            # Override width and height
-            width, height = resized_width, resized_height
-            flux_kwargs["image"] = input_image.resize((width, height), Image.LANCZOS)
-            flux_kwargs["mask_image"] = mask_image.resize(
-                (width, height), Image.LANCZOS
-            )
-            flux_kwargs["strength"] = prompt_strength
-            print(f"Using {model} model for inpainting")
-            pipe = self.inpaint_pipes[model]
-        else:  # is_txt2img_mode, i.e. not (is_img2img_mode or is_inpaint_mode)
+            # Crop to the nearest smaller multiple of 16
+            width = resized_width - (resized_width % 16)
+            height = resized_height - (resized_height % 16)
+            # Center crop
+            left = (input_image.width - width) // 2
+            top = (input_image.height - height) // 2
+            right = left + width
+            bottom = top + height
+            flux_kwargs["image"] = input_image.crop((left, top, right, bottom))
+            
+            if is_img2img_mode:
+                print("[!] img2img mode")
+                flux_kwargs["strength"] = prompt_strength
+                print(f"Using {model} model for img2img")
+                pipe = self.img2img_pipes[model]
+            else:  # is_inpaint_mode
+                print("[!] inpaint mode")
+                mask_image = Image.open(mask).convert("RGB")
+                flux_kwargs["mask_image"] = mask_image.crop((left, top, right, bottom))
+                flux_kwargs["strength"] = prompt_strength
+                print(f"Using {model} model for inpainting")
+                pipe = self.inpaint_pipes[model]
+        else:  # is_txt2img_mode
             print("[!] txt2img mode")
             pipe = self.pipes[model]
 
@@ -460,4 +459,5 @@ def download_base_weights(url: str, dest: Path):
 
 
 def make_multiple_of_16(n):
+    # Rounds up to the next multiple of 16, or returns n if already a multiple of 16
     return ((n + 15) // 16) * 16
