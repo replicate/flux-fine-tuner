@@ -120,7 +120,7 @@ def train(
         description="Hugging Face token, if you'd like to upload the trained LoRA to Hugging Face.",
         default=None,
     ),
-    skip_training_and_use_pretrained_hf_lora_url: Optional[str] = Input(
+    skip_training_and_use_pretrained_hf_lora_url: str = Input(
         description="If you’d like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that’s on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
         default=None,
     ),
