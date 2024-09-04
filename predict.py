@@ -72,9 +72,7 @@ class Predictor(BasePredictor):
             download_base_weights(SAFETY_URL, SAFETY_CACHE_PATH)
         self.safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_CACHE_PATH, torch_dtype=torch.float16
-        ).to(
-            "cuda"
-        )  # pyright: ignore
+        ).to("cuda")  # pyright: ignore
         self.feature_extractor = cast(
             CLIPImageProcessor, CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR)
         )
@@ -242,7 +240,7 @@ class Predictor(BasePredictor):
         ),
         output_quality: int = Input(
             description="Quality when saving the output images, from 0 to 100. 100 is best quality, 0 is lowest quality. Not relevant for .png outputs",
-            default=80,
+            default=90,
             ge=0,
             le=100,
         ),
