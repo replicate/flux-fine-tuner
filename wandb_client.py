@@ -6,6 +6,19 @@ import wandb
 from wandb.sdk.wandb_settings import Settings
 
 
+def logout_wandb():
+    netrc_path = Path("/root/.netrc")
+    if not netrc_path.exists():
+        return
+
+    n = netrc.netrc(netrc_path)
+
+    if "api.wandb.ai" in n.hosts:
+        del n.hosts["api.wandb.ai"]
+
+        netrc_path.write_text(repr(n))
+
+
 class WeightsAndBiasesClient:
     def __init__(
         self,
@@ -56,15 +69,6 @@ class WeightsAndBiasesClient:
     def finish(self):
         with suppress(Exception):
             wandb.finish()
-
-    def logout(self):
-        netrc_path = Path("/root/.netrc")
-        n = netrc.netrc(netrc_path)
-
-        if "api.wandb.ai" in n.hosts:
-            del n.hosts["api.wandb.ai"]
-
-            netrc_path.write_text(repr(n))
 
 
 def truncate(text, max_chars=50):

@@ -27,7 +27,7 @@ from jobs import BaseJob
 from toolkit.config import get_config
 
 from caption import Captioner
-from wandb_client import WeightsAndBiasesClient
+from wandb_client import WeightsAndBiasesClient, logout_wandb
 
 
 JOB_NAME = "flux_train_replicate"
@@ -306,31 +306,26 @@ def train(
             name=wandb_run,
         )
 
-    try:
-        download_weights()
-        extract_zip(input_images, INPUT_DIR)
+    download_weights()
+    extract_zip(input_images, INPUT_DIR)
 
-        if not trigger_word:
-            del train_config["config"]["process"][0]["trigger_word"]
+    if not trigger_word:
+        del train_config["config"]["process"][0]["trigger_word"]
 
-        captioner = Captioner()
-        if autocaption and not captioner.all_images_are_captioned(INPUT_DIR):
-            captioner.load_models()
-            captioner.caption_images(INPUT_DIR, autocaption_prefix, autocaption_suffix)
+    captioner = Captioner()
+    if autocaption and not captioner.all_images_are_captioned(INPUT_DIR):
+        captioner.load_models()
+        captioner.caption_images(INPUT_DIR, autocaption_prefix, autocaption_suffix)
 
-        del captioner
-        torch.cuda.empty_cache()
+    del captioner
+    torch.cuda.empty_cache()
 
-        print("Starting train job")
-        job = CustomJob(get_config(train_config, name=None), wandb_client)
-        job.run()
+    print("Starting train job")
+    job = CustomJob(get_config(train_config, name=None), wandb_client)
+    job.run()
 
-        if wandb_client:
-            wandb_client.finish()
-
-    finally:
-        if wandb_client:
-            wandb_client.logout()
+    if wandb_client:
+        wandb_client.finish()
 
     job.cleanup()
 
@@ -441,6 +436,8 @@ def extract_zip(input_images: Path, input_dir: Path):
 
 
 def clean_up():
+    logout_wandb()
+
     if INPUT_DIR.exists():
         shutil.rmtree(INPUT_DIR)
 
