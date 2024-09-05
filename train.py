@@ -206,33 +206,6 @@ def train(
     if wandb_sample_prompts:
         sample_prompts = [p.strip() for p in wandb_sample_prompts.split("\n")]
 
-    wandb_client = None
-    if wandb_api_key:
-        wandb_config = {
-            "trigger_word": trigger_word,
-            "autocaption": autocaption,
-            "autocaption_prefix": autocaption_prefix,
-            "autocaption_suffix": autocaption_suffix,
-            "steps": steps,
-            "learning_rate": learning_rate,
-            "batch_size": batch_size,
-            "resolution": resolution,
-            "lora_rank": lora_rank,
-            "caption_dropout_rate": caption_dropout_rate,
-            "optimizer": optimizer,
-        }
-        wandb_client = WeightsAndBiasesClient(
-            api_key=wandb_api_key.get_secret_value(),
-            config=wandb_config,
-            sample_prompts=sample_prompts,
-            project=wandb_project,
-            entity=wandb_entity,
-            name=wandb_run,
-        )
-
-    download_weights()
-    extract_zip(input_images, INPUT_DIR)
-
     train_config = OrderedDict(
         {
             "job": "custom_job",
@@ -309,23 +282,55 @@ def train(
         }
     )
 
-    if not trigger_word:
-        del train_config["config"]["process"][0]["trigger_word"]
+    wandb_client = None
+    if wandb_api_key:
+        wandb_config = {
+            "trigger_word": trigger_word,
+            "autocaption": autocaption,
+            "autocaption_prefix": autocaption_prefix,
+            "autocaption_suffix": autocaption_suffix,
+            "steps": steps,
+            "learning_rate": learning_rate,
+            "batch_size": batch_size,
+            "resolution": resolution,
+            "lora_rank": lora_rank,
+            "caption_dropout_rate": caption_dropout_rate,
+            "optimizer": optimizer,
+        }
+        wandb_client = WeightsAndBiasesClient(
+            api_key=wandb_api_key.get_secret_value(),
+            config=wandb_config,
+            sample_prompts=sample_prompts,
+            project=wandb_project,
+            entity=wandb_entity,
+            name=wandb_run,
+        )
 
-    captioner = Captioner()
-    if autocaption and not captioner.all_images_are_captioned(INPUT_DIR):
-        captioner.load_models()
-        captioner.caption_images(INPUT_DIR, autocaption_prefix, autocaption_suffix)
+    try:
+        download_weights()
+        extract_zip(input_images, INPUT_DIR)
 
-    del captioner
-    torch.cuda.empty_cache()
+        if not trigger_word:
+            del train_config["config"]["process"][0]["trigger_word"]
 
-    print("Starting train job")
-    job = CustomJob(get_config(train_config, name=None), wandb_client)
-    job.run()
+        captioner = Captioner()
+        if autocaption and not captioner.all_images_are_captioned(INPUT_DIR):
+            captioner.load_models()
+            captioner.caption_images(INPUT_DIR, autocaption_prefix, autocaption_suffix)
 
-    if wandb_client:
-        wandb_client.finish()
+        del captioner
+        torch.cuda.empty_cache()
+
+        print("Starting train job")
+        job = CustomJob(get_config(train_config, name=None), wandb_client)
+        job.run()
+
+        if wandb_client:
+            wandb_client.finish()
+
+    finally:
+        if wandb_client:
+            wandb_client.logout()
 
     job.cleanup()
 

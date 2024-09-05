@@ -1,3 +1,4 @@
+import netrc
 from pathlib import Path
 from typing import Any, Sequence
 from contextlib import suppress
@@ -18,28 +19,56 @@ class WeightsAndBiasesClient:
         self.api_key = api_key
         self.sample_prompts = sample_prompts
         wandb.login(key=self.api_key, verify=True)
-        self.run = wandb.init(
-            project=project,
-            entity=entity,
-            name=name,
-            config=config,
-            save_code=False,
-            settings=Settings(_disable_machine_info=True),
-        )
+        try:
+            self.run = wandb.init(
+                project=project,
+                entity=entity,
+                name=name,
+                config=config,
+                save_code=False,
+                settings=Settings(_disable_machine_info=True),
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to log in to Weights & Biases: {e}")
 
     def log_loss(self, loss_dict: dict[str, Any], step: int | None):
-        wandb.log(data=loss_dict, step=step)
+        try:
+            wandb.log(data=loss_dict, step=step)
+        except Exception as e:
+            print(f"Failed to log to Weights & Biases: {e}")
 
     def log_samples(self, image_paths: Sequence[Path], step: int | None):
         data = {
-            f"samples/{prompt}": wandb.Image(str(path))
+            f"samples/{truncate(prompt)}": wandb.Image(str(path))
             for prompt, path in zip(self.sample_prompts, image_paths)
         }
-        wandb.log(data=data, step=step)
+        try:
+            wandb.log(data=data, step=step)
+        except Exception as e:
+            print(f"Failed to log to Weights & Biases: {e}")
 
     def save_weights(self, lora_path: Path):
-        wandb.save(lora_path)
+        try:
+            wandb.save(lora_path)
+        except Exception as e:
+            print(f"Failed to save to Weights & Biases: {e}")
 
     def finish(self):
         with suppress(Exception):
             wandb.finish()
+
+    def logout(self):
+        netrc_path = Path("/root/.netrc")
+        n = netrc.netrc(netrc_path)
+
+        if "api.wandb.ai" in n.hosts:
+            del n.hosts["api.wandb.ai"]
+
+            netrc_path.write_text(repr(n))
+
+
+def truncate(text, max_chars=50):
+    if len(text) <= max_chars:
+        return text
+    half = (max_chars - 3) // 2
+    return f"{text[:half]}...{text[-half:]}"
