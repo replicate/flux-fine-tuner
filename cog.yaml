@@ -3,12 +3,12 @@
 
 build:
   gpu: true
-  cuda: "12.1"
+  cuda: "12.4"
   python_version: "3.10.14"
   python_packages:
     # flux
-    - "torch==2.3.0"
-    - "torchvision==0.18.0"
+    - "torch==2.4.0"
+    - "torchvision==0.19.0"
     - "safetensors==0.4.4"
     - "diffusers==0.30.0"
     - "transformers==4.44.0"
@@ -56,6 +56,8 @@ build:
   run:
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.8.2/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
     - pip install "git+https://github.com/Gothos/diffusers.git@flux-inpaint"
+    - "pip install --force-reinstall --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu124"
+    #- "pip install --force-reinstall --pre torch==2.5.0.dev20240905+cu124 torchvision==0.20.0.dev20240905+cu124 --index-url https://download.pytorch.org/whl/nightly/cu124"
 
 # predict.py defines how predictions are run on your model
 predict: "predict.py:Predictor"
