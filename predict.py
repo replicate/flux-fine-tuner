@@ -302,12 +302,11 @@ class Predictor(BasePredictor):
 
         if is_img2img_mode or is_inpaint_mode:
             input_image = Image.open(image).convert("RGB")
-            resized_width, resized_height = self.resize_image_dimensions(
-                input_image.size
-            )
+
             # Crop to the nearest smaller multiple of 16
-            width = resized_width - (resized_width % 16)
-            height = resized_height - (resized_height % 16)
+            width = input_image.width - (input_image.width % 16)
+            height = input_image.height - (input_image.height % 16)
+
             # Center crop
             left = (input_image.width - width) // 2
             top = (input_image.height - height) // 2
