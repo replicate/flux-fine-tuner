@@ -28,6 +28,7 @@ from toolkit.config import get_config
 
 from caption import Captioner
 from wandb_client import WeightsAndBiasesClient, logout_wandb
+from layer_match import match_layers_to_optimize, available_layers_to_optimize
 
 
 JOB_NAME = "flux_train_replicate"
@@ -148,6 +149,14 @@ def train(
         description="Optimizer to use for training. Supports: prodigy, adam8bit, adamw8bit, lion8bit, adam, adamw, lion, adagrad, adafactor.",
         default="adamw8bit",
     ),
+    cache_latents_to_disk: bool = Input(
+        description="Use this if you have lots of input images and you hit out of memory errors",
+        default=False,
+    ),
+    layers_to_optimize_regex: str = Input(
+        description="Regular expression to match specific layers to optimize. Optimizing fewer layers results in shorter training times, but can also result in a weaker LoRA. For example, To target layers 7, 12, 16, 20 which seems to create good likeness with faster training (as discovered by lux in the Ostris discord, inspired by The Last Ben), use `transformer.single_transformer_blocks.(7|12|16|20).proj_out`.",
+        default=None,
+    ),
     hf_repo_id: str = Input(
         description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora. If the given repo does not exist, a new public repo will be created.",
         default=None,
@@ -202,6 +211,15 @@ def train(
     if not input_images:
         raise ValueError("input_images must be provided")
 
+    layers_to_optimize = None
+    if layers_to_optimize_regex:
+        layers_to_optimize = match_layers_to_optimize(layers_to_optimize_regex)
+        if not layers_to_optimize:
+            raise ValueError(
+                f"The regex '{layers_to_optimize_regex}' didn't match any layers. These layers can be optimized:\n"
+                + "\n".join(available_layers_to_optimize)
+            )
+
     sample_prompts = []
     if wandb_sample_prompts:
         sample_prompts = [p.strip() for p in wandb_sample_prompts.split("\n")]
@@ -236,7 +254,8 @@ def train(
                                 "caption_dropout_rate": caption_dropout_rate,
                                 "shuffle_tokens": False,
                                 # TODO: Do we need to cache to disk? It's faster not to.
-                                "cache_latents_to_disk": True,
+                                "cache_latents_to_disk": cache_latents_to_disk,
+                                "cache_latents": True,
                                 "resolution": [
                                     int(res) for res in resolution.split(",")
                                 ],
@@ -281,6 +300,11 @@ def train(
             "meta": {"name": "[name]", "version": "1.0"},
         }
     )
+
+    if layers_to_optimize:
+        train_config["config"]["process"][0]["network"]["network_kwargs"] = {
+            "only_if_contains": layers_to_optimize
+        }
 
     wandb_client = None
     if wandb_api_key:
