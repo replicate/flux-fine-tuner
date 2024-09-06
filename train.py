@@ -102,7 +102,8 @@ def train(
         default=None,
     ),
     trigger_word: str = Input(
-        description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn’t a real word, but is ideally related to what’s being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
+        description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn’t a real word, like TOK or something related to what’s being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
+        default="TOK",
     ),
     autocaption: bool = Input(
         description="Automatically caption images using Llava v1.5 13B", default=True
