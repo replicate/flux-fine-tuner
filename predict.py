@@ -347,9 +347,6 @@ class Predictor(BasePredictor):
             flux_kwargs["width"] = width
             flux_kwargs["height"] = height
 
-            flux_kwargs["width"] = width
-            flux_kwargs["height"] = height
-
         if replicate_weights:
             flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
 
