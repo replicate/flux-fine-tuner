@@ -344,6 +344,8 @@ class Predictor(BasePredictor):
         else:  # is_txt2img_mode
             print("[!] txt2img mode")
             pipe = self.pipes[model]
+            flux_kwargs["width"] = width
+            flux_kwargs["height"] = height
 
         if replicate_weights:
             flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
