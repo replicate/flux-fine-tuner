@@ -15,7 +15,7 @@ predict:
         seed: 5259
         output_format: jpg
         replicate_weights: https://replicate.delivery/yhqm/MHJmIF7zlLKXPNN9LKN5yxYUuC7SyzKjMBtqeVwUGdPCpqqJA/trained_model.tar
-      match_url: https://replicate.delivery/yhqm/1jbh5xu9KqaoAV0fG8z3rhaN6ei5fyQEHffTJePLUZdXi182E/out-0.jpg
+      match_url: https://replicate.delivery/yhqm/7Qbsh2sfn50UJitRjBEgwdCj5Mk4F4q43el4hC3BkesSZq3mA/out-0.jpg
 
     # img2img and custom size
     - inputs:
