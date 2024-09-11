@@ -15,7 +15,7 @@ predict:
         seed: 5259
         output_format: jpg
         replicate_weights: https://replicate.delivery/yhqm/MHJmIF7zlLKXPNN9LKN5yxYUuC7SyzKjMBtqeVwUGdPCpqqJA/trained_model.tar
-      match_url: https://replicate.delivery/yhqm/7Qbsh2sfn50UJitRjBEgwdCj5Mk4F4q43el4hC3BkesSZq3mA/out-0.jpg
+      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/base.jpg
 
     # img2img and custom size
     - inputs:
@@ -34,7 +34,7 @@ predict:
         image: "https://storage.googleapis.com/cog-safe-push-public/fast-car.jpg"
         prompt_strength: 0.9
         seed: 12919
-      match_url: "https://replicate.delivery/yhqm/ySRQ9Kchm3pQAZmG5CsWuJJnrIUmI7KfffURlgNXRccTBo3mA/out-0.jpg"
+      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/img2img.jpg
 
     # inpainting
     - inputs:
@@ -54,7 +54,7 @@ predict:
         image: "https://replicate.delivery/pbxt/LbXcDNOFtOMiBChe9QHHbeNJ5KcoTNfWEGmIxswhaexvXWEs/Screenshot%202024-09-11%20at%2014.36.07.png"
         mask: "https://replicate.delivery/pbxt/LbXcE8bXqlTqPWIDb3SFFuJzIUMKSUscnqF97XVv0K2coEwr/Screenshot%202024-09-11%20at%2014.37.41.png"
         seed: 64090
-      match_url: "https://replicate.delivery/yhqm/NwelDMqsy234YaQesvcpWxsxmlKYlsgRkBW9JBXAfomXYo3mA/out-0.jpg"
+      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/inpaint.jpg
 
     # aspect ratio
     - inputs:
@@ -67,7 +67,7 @@ predict:
         seed: 16726
         output_format: jpg
         replicate_weights: https://replicate.delivery/yhqm/MHJmIF7zlLKXPNN9LKN5yxYUuC7SyzKjMBtqeVwUGdPCpqqJA/trained_model.tar
-      match_url: https://replicate.delivery/yhqm/sedcOpLQ48XWE6KrjhRL9sIkuH6AJJI6Xix23ArqZ2wNr5tJA/out-0.jpg
+      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/aspect-ratio.jpg
 
     # schnell
     - inputs:
@@ -80,7 +80,7 @@ predict:
         seed: 16726
         output_format: jpg
         replicate_weights: https://replicate.delivery/yhqm/MHJmIF7zlLKXPNN9LKN5yxYUuC7SyzKjMBtqeVwUGdPCpqqJA/trained_model.tar
-      match_url: https://replicate.delivery/yhqm/hHjTKpqSfjy4CqNzmNoWcYGW4WkYH069E4GcMvlkjaSRr5tJA/out-0.jpg
+      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/schnell.jpg
 
     # extra lora
     - inputs:
@@ -96,7 +96,7 @@ predict:
         replicate_weights: https://replicate.delivery/yhqm/MHJmIF7zlLKXPNN9LKN5yxYUuC7SyzKjMBtqeVwUGdPCpqqJA/trained_model.tar
         output_format: jpg
         output_quality: 90
-      match_url: https://replicate.delivery/yhqm/jpyztFCfmetarE6p9Zt8VL2wfJpzyssOEtrX3ieGLspEee82E/out-0.jpg
+      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/extra-lora.jpg
 
   fuzz:
     fixed_inputs:
