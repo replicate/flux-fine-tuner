@@ -2,21 +2,22 @@
 
 This is a [Cog](https://cog.run) training model that creates LoRA-based fine-tunes for the [FLUX.1](https://replicate.com/blog/flux-state-of-the-art-image-generation) family of image generation models.
 
-It's live at [replicate.com/ostris/flux-dev-lora-trainer/train](https://replicate.com/ostris/flux-dev-lora-trainer).
+It's live at [replicate.com/ostris/flux-dev-lora-trainer](https://replicate.com/ostris/flux-dev-lora-trainer).
 
-## Fine-tuning Flux
+## Getting Started
 
-If you're just looking to create a fine-tuned Flux model, you don't need to do anything with this codebase.
+If you're looking to create your own fine-tuned model on Replicate, you don't need to do anything with this codebase.
 
-To get started fine-tuning Flux on Replicate, check out these guides:
+Check out these guides to get started:
 
-- [Fine-tune FlUX.1](https://replicate.com/blog/fine-tune-flux)
-- [Fine-tune FLUX.1 to create images of yourself](https://replicate.com/blog/fine-tune-flux-with-faces)
-- [Fine-tune FLUX.1 with an API](https://replicate.com/blog/fine-tune-flux-with-an-api)
+👉 [Fine-tune Flux to create images of yourself](https://replicate.com/blog/fine-tune-flux-with-faces)
+👉 [Fine-tune Flux with an API](https://replicate.com/blog/fine-tune-flux-with-an-api)
 
 ## Contributing
 
-Want to help make this project better? Check out the [contributing guide](CONTRIBUTING.md) to get started.
+If you're here to help improve [the trainer that Replicate uses to fine-tune Flux models](https://replicate.com/ostris/flux-dev-lora-trainer), you've come to the right place.
+
+Check out the [contributing guide](CONTRIBUTING.md) to get started.
 
 ## Credits
 
