@@ -21,3 +21,9 @@ Want to help make this project better? Check out the [contributing guide](CONTRI
 ## Credits
 
 This project is based on the [ai-toolkit](https://github.com/ostris/ai-toolkit) project, which was created by [@ostris](https://github.com/ostris). ❤️
+
+## License
+
+Flux Dev falls under the [`FLUX.1 [dev]` Non-Commercial License](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md).
+
+Flux Schnell falls under the [Apache-2.0 License](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md).
