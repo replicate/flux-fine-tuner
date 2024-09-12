@@ -6,11 +6,9 @@ This document covers how to get started working on this project, and proposing c
 
 ## Start with an issue
 
-Rather than jump straight to an implementation in a pull request, please start with an issue.
+Rather than jump straight to an implementation in a pull request, please [check out the open issues first](https://github.com/replicate/flux-fine-tuner/issues) to see if there's already a discussion around the feature you want to add or the bug you want to fix. If no issue exists, please [open a new issue](https://github.com/replicate/flux-fine-tuner/issues/new) to discuss the change you want to make.
 
-This gives everyone a chance to weigh in on the idea, and for you to get some early feedback. It also helps avoid wasting time on something that the maintainers don't think is a good fit for this project.
-
-If you've found a bug, please include steps to reproduce it.
+This process helps avoid wasting time working on something that may not fit the needs of the project.
 
 ## Development
 
