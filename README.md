@@ -1,69 +1,31 @@
 # flux-fine-tuner
 
-## Development
+This is a [Cog](https://cog.run) training model that creates LoRA-based fine-tunes for the [FLUX.1](https://replicate.com/blog/flux-state-of-the-art-image-generation) family of image generation models.
 
-Before submitting a PR, format the code and run the linter locally.
+It's live at [replicate.com/ostris/flux-dev-lora-trainer](https://replicate.com/ostris/flux-dev-lora-trainer).
 
-```shell
-pip install -r requirements-test.txt  # only need to do this once
-ruff format
-ruff check
-```
+## Getting Started
 
-## Deploy to production
+If you're looking to create your own fine-tuned model on Replicate, you don't need to do anything with this codebase.
 
-### Push model
+Check out these guides to get started:
 
-Manually trigger the [Github Push action](https://github.com/replicate/flux-fine-tuner/actions/workflows/push.yaml). Uncheck the "Test only, without pushing to prod" button. You might also have to uncheck the "Compare outputs..." button.
+👉 [Fine-tune Flux to create images of yourself](https://replicate.com/blog/fine-tune-flux-with-faces)
 
-The push action takes half an hour since it tests both training and inference. But it's worth doing to be safe.
+👉 [Fine-tune Flux with an API](https://replicate.com/blog/fine-tune-flux-with-an-api)
 
-Once you've deployed to production, make a test fine-tune and run predictions on the trained model, just to be super sure it works.
+## Contributing
 
-### Update hotswap bases
+If you're here to help improve [the trainer that Replicate uses to fine-tune Flux models](https://replicate.com/ostris/flux-dev-lora-trainer), you've come to the right place.
 
-When you've tested the pushed model, you need to update all existing fine-tuned versions to use the predictor you just pushed.
+Check out the [contributing guide](CONTRIBUTING.md) to get started.
 
-First, only update a single model or a subset of models to test that this step works.
+## Credits
 
-In your local checkout of [web](https://github.com/replicate/web), run
+This project is based on the [ai-toolkit](https://github.com/ostris/ai-toolkit) project, which was created by [@ostris](https://github.com/ostris). ❤️
 
-```shell
-script/manage-prod update_hotswap_base_version \
-    --from-model ostris/flux-dev-lora-trainer \
-    --to-latest \
-    --trained-version-filter="<your-username>/<your-model-name>"
-```
+## License
 
-This is a dry run to list the versions that will be updated. The `--trained-version-filter` can be just "<your-username>" if you want to test all your models.
+Flux Dev falls under the [`FLUX.1 [dev]` Non-Commercial License](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md).
 
-When you're happy to with the list of models that will be updated, run
-
-```shell
-script/manage-prod update_hotswap_base_version \
-    --from-model ostris/flux-dev-lora-trainer \
-    --to-latest \
-    --trained-version-filter="<your-username>/<your-model-name>" \
-    --force
-```
-
-Now you can test that the predictor works for the updated model(s).
-
-When you're happy with that, do the same thing but for all models. First, a dry run:
-
-```shell
-script/manage-prod update_hotswap_base_version \
-    --from-model ostris/flux-dev-lora-trainer \
-    --to-latest \
-```
-
-And then actually update all the trained Flux versions:
-
-```shell
-script/manage-prod update_hotswap_base_version \
-    --from-model ostris/flux-dev-lora-trainer \
-    --to-latest \
-    --force
-```
-
-This process is being improved -- soon it will be possible to configure base versions in Django admin.
+Flux Schnell falls under the [Apache-2.0 License](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md).
