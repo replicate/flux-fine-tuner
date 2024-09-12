@@ -11,6 +11,7 @@ If you're looking to create your own fine-tuned model on Replicate, you don't ne
 Check out these guides to get started:
 
 👉 [Fine-tune Flux to create images of yourself](https://replicate.com/blog/fine-tune-flux-with-faces)
+
 👉 [Fine-tune Flux with an API](https://replicate.com/blog/fine-tune-flux-with-an-api)
 
 ## Contributing
