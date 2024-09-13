@@ -37,6 +37,10 @@ INPUT_DIR = Path("input_images")
 OUTPUT_DIR = Path("output")
 JOB_DIR = OUTPUT_DIR / JOB_NAME
 
+print(f"Environment language: {os.environ.get('LANG', 'Not set')}")
+os.environ["LANG"] = "en_US.UTF-8"
+print(f"Updated environment language: {os.environ.get('LANG', 'Not set')}")
+
 
 class CustomSDTrainer(SDTrainer):
     def __init__(self, *args, **kwargs):
@@ -242,9 +246,9 @@ def train(
                         },
                         "save": {
                             "dtype": "float16",
-                            "save_every": wandb_save_interval
-                            if wandb_api_key
-                            else steps + 1,
+                            "save_every": (
+                                wandb_save_interval if wandb_api_key else steps + 1
+                            ),
                             "max_step_saves_to_keep": 1,
                         },
                         "datasets": [
@@ -282,9 +286,11 @@ def train(
                         },
                         "sample": {
                             "sampler": "flowmatch",
-                            "sample_every": wandb_sample_interval
-                            if wandb_api_key and sample_prompts
-                            else steps + 1,
+                            "sample_every": (
+                                wandb_sample_interval
+                                if wandb_api_key and sample_prompts
+                                else steps + 1
+                            ),
                             "width": 1024,
                             "height": 1024,
                             "prompts": sample_prompts,
