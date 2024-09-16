@@ -36,6 +36,12 @@ jobs:
       run: |
         pip install git+https://github.com/replicate/cog-safe-push.git
 
+    - name: "Inject secrets into cog-safe-push.yaml"
+      env:
+        HF_TOKEN: ${{ secrets.HF_WRITE_TO_TEST_FINE_TUNER_INTEGRATION }}
+      run: |
+        envsubst < cog-safe-push.yaml.tpl > cog-safe-push.yaml
+
     - name: Run cog-safe-push to test the trainer and predictor and optionally push to production
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
