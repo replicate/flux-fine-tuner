@@ -150,7 +150,8 @@ def train(
         le=1,
     ),
     optimizer: str = Input(
-        description="Optimizer to use for training. Supports: prodigy, adam8bit, adamw8bit, lion8bit, adam, adamw, lion, adagrad, adafactor.",
+        description="Optimizer to use for training",
+        choices=["adam8bit", "adamw8bit", "adam", "adamw", "adagrad", "adafactor"],
         default="adamw8bit",
     ),
     cache_latents_to_disk: bool = Input(
