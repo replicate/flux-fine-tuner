@@ -1,6 +1,6 @@
 [submodule "ai-toolkit"]
 	path = ai-toolkit
-	url = git@github.com:ostris/ai-toolkit.git
+	url = https://github.com/ostris/ai-toolkit.git
 [submodule "LLaVA"]
 	path = LLaVA
-	url = git@github.com:haotian-liu/LLaVA.git
+	url = https://github.com/haotian-liu/LLaVA.git
