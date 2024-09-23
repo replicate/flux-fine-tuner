@@ -6,6 +6,14 @@ It's live at [replicate.com/ostris/flux-dev-lora-trainer](https://replicate.com/
 
 It also includes code for running inference with a fine-tuned model.
 
+## Features
+
+- Automatic image captioning during training
+- Image generation using the LoRA (inference)
+- Optionally uploads fine-tuned weights to Hugging Face after training
+- Automated test suite with [cog-safe-push](https://github.com/replicate/cog-safe-push) for continuous deployment
+- Weights and biases integration
+
 ## Getting Started
 
 If you're looking to create your own fine-tuned model on Replicate, you don't need to do anything with this codebase.
