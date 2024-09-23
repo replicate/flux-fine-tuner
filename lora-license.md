@@ -21,7 +21,7 @@ pipeline_tag: text-to-image
 
 # [title]
 
-<!-- <Gallery /> -->
+<Gallery />
 
 Trained on Replicate using:
 
