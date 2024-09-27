@@ -24,6 +24,7 @@ from transformers import (
 )
 
 from weights import WeightsDownloadCache
+from lora_loading_patch import load_lora_into_transformer
 
 MODEL_URL_DEV = (
     "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/files.tar"
@@ -101,6 +102,7 @@ class Predictor(BasePredictor):
             "FLUX.1-dev",
             torch_dtype=torch.bfloat16,
         ).to("cuda")
+        dev_pipe.__class__.load_lora_into_transformer = classmethod(load_lora_into_transformer)
 
         print("Loading Flux schnell pipeline")
         if not FLUX_SCHNELL_PATH.exists():
@@ -131,6 +133,7 @@ class Predictor(BasePredictor):
             tokenizer=dev_pipe.tokenizer,
             tokenizer_2=dev_pipe.tokenizer_2,
         ).to("cuda")
+        dev_img2img_pipe.__class__.load_lora_into_transformer = classmethod(load_lora_into_transformer)
 
         print("Loading Flux schnell img2img pipeline")
         schnell_img2img_pipe = FluxImg2ImgPipeline(
@@ -159,6 +162,7 @@ class Predictor(BasePredictor):
             tokenizer=dev_pipe.tokenizer,
             tokenizer_2=dev_pipe.tokenizer_2,
         ).to("cuda")
+        dev_inpaint_pipe.__class__.load_lora_into_transformer = classmethod(load_lora_into_transformer)
 
         print("Loading Flux schnell inpaint pipeline")
         schnell_inpaint_pipe = FluxInpaintPipeline(
@@ -430,6 +434,7 @@ class Predictor(BasePredictor):
         lora_path = self.weights_cache.ensure(lora_url)
         pipe.load_lora_weights(lora_path, adapter_name="main")
         self.loaded_lora_urls[model] = LoadedLoRAs(main=lora_url, extra=None)
+        pipe = pipe.to("cuda")
 
     def load_multiple_loras(self, main_lora_url: str, extra_lora_url: str, model: str):
         pipe = self.pipes[model]
@@ -455,6 +460,7 @@ class Predictor(BasePredictor):
         self.loaded_lora_urls[model] = LoadedLoRAs(
             main=main_lora_url, extra=extra_lora_url
         )
+        pipe = pipe.to("cuda")
 
     @torch.amp.autocast("cuda")  # pyright: ignore
     def run_safety_checker(self, image):
