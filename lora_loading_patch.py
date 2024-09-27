@@ -1,3 +1,4 @@
+# ruff: noqa
 from diffusers.utils import convert_unet_state_dict_to_peft, get_peft_kwargs, is_peft_version, get_adapter_name, logging
 
 logger = logging.get_logger(__name__)
