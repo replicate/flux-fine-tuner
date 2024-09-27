@@ -15,7 +15,7 @@ __pycache__
 
 # Exclude Python virtual environment
 /venv
-
+/weights-cache
 
 FLUX.1-dev
 FLUX.1-schnell
