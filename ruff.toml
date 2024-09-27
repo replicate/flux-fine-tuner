@@ -27,7 +27,7 @@ exclude = [
     "site-packages",
     "venv",
     "ai-toolkit",
-    "LLaVA"
+    "LLaVA",
 ]
 
 # Same as Black.
