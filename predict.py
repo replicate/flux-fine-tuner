@@ -102,7 +102,9 @@ class Predictor(BasePredictor):
             "FLUX.1-dev",
             torch_dtype=torch.bfloat16,
         ).to("cuda")
-        dev_pipe.__class__.load_lora_into_transformer = classmethod(load_lora_into_transformer)
+        dev_pipe.__class__.load_lora_into_transformer = classmethod(
+            load_lora_into_transformer
+        )
 
         print("Loading Flux schnell pipeline")
         if not FLUX_SCHNELL_PATH.exists():
@@ -133,7 +135,9 @@ class Predictor(BasePredictor):
             tokenizer=dev_pipe.tokenizer,
             tokenizer_2=dev_pipe.tokenizer_2,
         ).to("cuda")
-        dev_img2img_pipe.__class__.load_lora_into_transformer = classmethod(load_lora_into_transformer)
+        dev_img2img_pipe.__class__.load_lora_into_transformer = classmethod(
+            load_lora_into_transformer
+        )
 
         print("Loading Flux schnell img2img pipeline")
         schnell_img2img_pipe = FluxImg2ImgPipeline(
@@ -162,7 +166,9 @@ class Predictor(BasePredictor):
             tokenizer=dev_pipe.tokenizer,
             tokenizer_2=dev_pipe.tokenizer_2,
         ).to("cuda")
-        dev_inpaint_pipe.__class__.load_lora_into_transformer = classmethod(load_lora_into_transformer)
+        dev_inpaint_pipe.__class__.load_lora_into_transformer = classmethod(
+            load_lora_into_transformer
+        )
 
         print("Loading Flux schnell inpaint pipeline")
         schnell_inpaint_pipe = FluxInpaintPipeline(
