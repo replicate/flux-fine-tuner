@@ -34,7 +34,7 @@ predict:
         image: "https://storage.googleapis.com/cog-safe-push-public/fast-car.jpg"
         prompt_strength: 0.9
         seed: 12919
-      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/img2img.jpg
+      match_url: https://replicate.delivery/yhqm/zekZzRptTet51UvOUHUH0fnT04taL9seSvRQuP0p7fPnvoIcC/out-0.jpg
 
     # inpainting
     - inputs:
@@ -80,7 +80,7 @@ predict:
         seed: 16726
         output_format: jpg
         replicate_weights: https://replicate.delivery/yhqm/MHJmIF7zlLKXPNN9LKN5yxYUuC7SyzKjMBtqeVwUGdPCpqqJA/trained_model.tar
-      match_url: https://storage.googleapis.com/replicate-test-flux-finer-tuner/test-outputs/schnell.jpg
+      match_url: https://replicate.delivery/yhqm/rQhMIg6dhLYVJ5gXWfZI4Ik1DF9cGV7pm8UN0DKmpWDfJGhTA/out-0.jpg
 
     # extra lora
     - inputs:
