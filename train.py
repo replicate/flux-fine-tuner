@@ -111,7 +111,8 @@ def train(
         default="",
     ),
     autocaption: bool = Input(
-        description="Automatically caption images using Llava v1.5 13B", default=True
+        description="Automatically caption images using Llava v1.5 13B. Alternatively you can pass in your own captions. If you pass in some of your own captions (as .txt files that match the image filenames), then autocaption will only add captions to images that do not already have one.",
+        default=True,
     ),
     autocaption_prefix: str = Input(
         description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
