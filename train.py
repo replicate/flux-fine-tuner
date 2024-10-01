@@ -115,11 +115,11 @@ def train(
         default=True,
     ),
     autocaption_prefix: str = Input(
-        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
+        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of CNCEPT, ’. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
         default=None,
     ),
     autocaption_suffix: str = Input(
-        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use this suffix as context.",
+        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘ in the style of MY_STYL’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use this suffix as context.",
         default=None,
     ),
     steps: int = Input(
