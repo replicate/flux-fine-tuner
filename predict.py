@@ -13,6 +13,7 @@ from diffusers.pipelines.flux import (
     FluxPipeline,
     FluxInpaintPipeline,
     FluxImg2ImgPipeline,
+    FluxControlNetPipeline,
 )
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
@@ -22,6 +23,7 @@ from transformers import (
     AutoModelForImageClassification,
     ViTImageProcessor,
 )
+from diffusers.models.controlnet_flux import FluxControlNetModel
 
 from weights import WeightsDownloadCache
 from lora_loading_patch import load_lora_into_transformer
@@ -72,7 +74,7 @@ class Predictor(BasePredictor):
         """Load the model into memory to make running multiple predictions efficient"""
         start = time.time()
         # Don't pull weights
-        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "0" # TODO: Make this 1 !!!!!!!!!!!!!!!!
 
         self.weights_cache = WeightsDownloadCache()
 
@@ -186,6 +188,46 @@ class Predictor(BasePredictor):
             "schnell": schnell_inpaint_pipe,
         }
 
+        # Load ControlNet model
+        print("Loading Flux ControlNet model")
+        controlnet_model = FluxControlNetModel.from_pretrained(
+            "InstantX/FLUX.1-dev-Controlnet-Union",
+            torch_dtype=torch.bfloat16
+        ).to("cuda")
+
+        # Create ControlNet pipelines
+        print("Loading Flux dev ControlNet pipeline")
+        dev_controlnet_pipe = FluxControlNetPipeline(
+            transformer=dev_pipe.transformer,
+            controlnet=controlnet_model,
+            scheduler=dev_pipe.scheduler,
+            vae=dev_pipe.vae,
+            text_encoder=dev_pipe.text_encoder,
+            text_encoder_2=dev_pipe.text_encoder_2,
+            tokenizer=dev_pipe.tokenizer,
+            tokenizer_2=dev_pipe.tokenizer_2,
+        ).to("cuda")
+        dev_controlnet_pipe.__class__.load_lora_into_transformer = classmethod(
+            load_lora_into_transformer
+        )
+
+        print("Loading Flux schnell ControlNet pipeline")
+        schnell_controlnet_pipe = FluxControlNetPipeline(
+            transformer=schnell_pipe.transformer,
+            controlnet=controlnet_model,
+            scheduler=schnell_pipe.scheduler,
+            vae=schnell_pipe.vae,
+            text_encoder=schnell_pipe.text_encoder,
+            text_encoder_2=schnell_pipe.text_encoder_2,
+            tokenizer=schnell_pipe.tokenizer,
+            tokenizer_2=schnell_pipe.tokenizer_2,
+        ).to("cuda")
+
+        self.controlnet_pipes = {
+            "dev": dev_controlnet_pipe,
+            "schnell": schnell_controlnet_pipe,
+        }
+
         self.loaded_lora_urls = {
             "dev": LoadedLoRAs(main=None, extra=None),
             "schnell": LoadedLoRAs(main=None, extra=None),
@@ -290,6 +332,21 @@ class Predictor(BasePredictor):
             description="Disable safety checker for generated images.",
             default=False,
         ),
+        control_image: Path = Input(
+            description="Input image for ControlNet guidance. If provided, the model will use ControlNet. Only works with the 'dev' model.",
+            default=None,
+        ),
+        control_mode: str = Input(
+            description="ControlNet mode to use. Only applicable when using ControlNet with the 'dev' model.",
+            choices=["canny", "depth", "hed"],
+            default="canny",
+        ),
+        controlnet_conditioning_scale: float = Input(
+            description="ControlNet conditioning scale. Only applicable when using ControlNet with the 'dev' model.",
+            default=0.5,
+            ge=0.0,
+            le=1.0,
+        ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
         if seed is None or seed < 0:
@@ -309,6 +366,7 @@ class Predictor(BasePredictor):
 
         is_img2img_mode = image is not None and mask is None
         is_inpaint_mode = image is not None and mask is not None
+        is_controlnet_mode = control_image is not None
 
         flux_kwargs = {}
         print(f"Prompt: {prompt}")
@@ -356,6 +414,18 @@ class Predictor(BasePredictor):
             pipe = self.pipes[model]
             flux_kwargs["width"] = width
             flux_kwargs["height"] = height
+
+        # Add ControlNet handling here, after the existing mode checks
+        if control_image is not None:
+            if model != "dev":
+                raise ValueError("ControlNet can only be used with the 'dev' model.")
+            print(f"[!] Using ControlNet: {control_mode}")
+            pipe = self.controlnet_pipes["dev"]
+            control_image_pil = Image.open(control_image).convert("RGB")
+            flux_kwargs["control_image"] = control_image_pil
+            flux_kwargs["control_mode"] = {"canny": 0, "depth": 2, "hed": 1}[control_mode]
+            flux_kwargs["controlnet_conditioning_scale"] = controlnet_conditioning_scale
+            flux_kwargs["width"], flux_kwargs["height"] = control_image_pil.size
 
         if replicate_weights:
             flux_kwargs["joint_attention_kwargs"] = {"scale": lora_scale}
