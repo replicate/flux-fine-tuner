@@ -1,4 +1,4 @@
-# flux-fine-tuner
+# 🌊 flux-fine-tuner
 
 This is a [Cog](https://cog.run) training model that creates LoRA-based fine-tunes for the [FLUX.1](https://replicate.com/blog/flux-state-of-the-art-image-generation) family of image generation models.
 
@@ -6,7 +6,7 @@ It's live at [replicate.com/ostris/flux-dev-lora-trainer](https://replicate.com/
 
 It also includes code for running inference with a fine-tuned model.
 
-## Features
+## ✨ Features
 
 - Automatic image captioning during training
 - Image generation using the LoRA (inference)
@@ -14,7 +14,7 @@ It also includes code for running inference with a fine-tuned model.
 - Automated test suite with [cog-safe-push](https://github.com/replicate/cog-safe-push) for continuous deployment
 - Weights and biases integration
 
-## Getting Started
+## 🚀 Getting Started
 
 If you're looking to create your own fine-tuned model on Replicate, you don't need to do anything with this codebase.
 
@@ -24,17 +24,33 @@ Check out these guides to get started:
 
 👉 [Fine-tune Flux with an API](https://replicate.com/blog/fine-tune-flux-with-an-api)
 
-## Contributing
+### 🔧 Cloning the Repository
+
+This project uses git submodules. When cloning, use the `--recursive` flag:
+
+```sh
+git clone --recursive https://github.com/replicate/flux-fine-tuner.git
+```
+
+If you've already cloned the repository and encounter a `ModuleNotFoundError` (e.g., `No module named 'llava'`), run:
+
+```sh
+git submodule update --init --recursive
+```
+
+This will fetch all necessary submodules.
+
+## 🤝 Contributing
 
 If you're here to help improve [the trainer that Replicate uses to fine-tune Flux models](https://replicate.com/ostris/flux-dev-lora-trainer), you've come to the right place.
 
 Check out the [contributing guide](CONTRIBUTING.md) to get started.
 
-## Credits
+## 🙏 Credits
 
 This project is based on the [ai-toolkit](https://github.com/ostris/ai-toolkit) project, which was created by [@ostris](https://github.com/ostris). ❤️
 
-## License
+## 📜 License
 
 The code in this repository is licensed under the [Apache-2.0 License](LICENSE).
 
