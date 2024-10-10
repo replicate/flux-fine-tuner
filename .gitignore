@@ -178,8 +178,7 @@ cython_debug/
 .cog
 *.zip
 
-FLUX.1-dev/
-FLUX.1-schnell/
+*.safetensors
 liuhaotian/
 openai/
 input_images/

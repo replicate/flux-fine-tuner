@@ -17,8 +17,7 @@ __pycache__
 /venv
 /weights-cache
 
-FLUX.1-dev
-FLUX.1-schnell
+*.safetensors
 liuhaotian
 openai
 output
