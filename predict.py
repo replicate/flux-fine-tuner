@@ -62,6 +62,10 @@ ASPECT_RATIOS = {
 logging.getLogger("diffusers").setLevel(logging.CRITICAL)
 logging.getLogger("transformers").setLevel(logging.CRITICAL)
 
+# At the top of the file, with other constants
+CONTROLNET_URL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/controlnet-cache/models--InstantX--FLUX.1-dev-Controlnet-Union.tar"
+CONTROLNET_CACHE_PATH = Path("controlnet-cache")
+
 
 @dataclass
 class LoadedLoRAs:
@@ -74,7 +78,7 @@ class Predictor(BasePredictor):
         """Load the model into memory to make running multiple predictions efficient"""
         start = time.time()
         # Don't pull weights
-        os.environ["TRANSFORMERS_OFFLINE"] = "0" # TODO: Make this 1 !!!!!!!!!!!!!!!!
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
         self.weights_cache = WeightsDownloadCache()
 
@@ -119,6 +123,17 @@ class Predictor(BasePredictor):
             tokenizer=dev_pipe.tokenizer,
             tokenizer_2=dev_pipe.tokenizer_2,
             torch_dtype=torch.bfloat16,
+        ).to("cuda")
+
+        print("Loading Flux ControlNet model")
+        if not CONTROLNET_CACHE_PATH.exists():
+            download_base_weights(CONTROLNET_URL, CONTROLNET_CACHE_PATH)
+
+        controlnet_model = FluxControlNetModel.from_pretrained(
+            "InstantX/FLUX.1-dev-Controlnet-Union",
+            cache_dir=CONTROLNET_CACHE_PATH,
+            torch_dtype=torch.bfloat16,
+            local_files_only=True,
         ).to("cuda")
 
         self.pipes = {
@@ -188,14 +203,7 @@ class Predictor(BasePredictor):
             "schnell": schnell_inpaint_pipe,
         }
 
-        # Load ControlNet model
-        print("Loading Flux ControlNet model")
-        controlnet_model = FluxControlNetModel.from_pretrained(
-            "InstantX/FLUX.1-dev-Controlnet-Union",
-            torch_dtype=torch.bfloat16
-        ).to("cuda")
-
-        # Create ControlNet pipelines
+        # Create ControlNet pipeline only for dev model
         print("Loading Flux dev ControlNet pipeline")
         dev_controlnet_pipe = FluxControlNetPipeline(
             transformer=dev_pipe.transformer,
@@ -211,21 +219,8 @@ class Predictor(BasePredictor):
             load_lora_into_transformer
         )
 
-        print("Loading Flux schnell ControlNet pipeline")
-        schnell_controlnet_pipe = FluxControlNetPipeline(
-            transformer=schnell_pipe.transformer,
-            controlnet=controlnet_model,
-            scheduler=schnell_pipe.scheduler,
-            vae=schnell_pipe.vae,
-            text_encoder=schnell_pipe.text_encoder,
-            text_encoder_2=schnell_pipe.text_encoder_2,
-            tokenizer=schnell_pipe.tokenizer,
-            tokenizer_2=schnell_pipe.tokenizer_2,
-        ).to("cuda")
-
         self.controlnet_pipes = {
             "dev": dev_controlnet_pipe,
-            "schnell": schnell_controlnet_pipe,
         }
 
         self.loaded_lora_urls = {
@@ -416,14 +411,16 @@ class Predictor(BasePredictor):
             flux_kwargs["height"] = height
 
         # Add ControlNet handling here, after the existing mode checks
-        if control_image is not None:
+        if is_controlnet_mode:
             if model != "dev":
                 raise ValueError("ControlNet can only be used with the 'dev' model.")
             print(f"[!] Using ControlNet: {control_mode}")
             pipe = self.controlnet_pipes["dev"]
             control_image_pil = Image.open(control_image).convert("RGB")
             flux_kwargs["control_image"] = control_image_pil
-            flux_kwargs["control_mode"] = {"canny": 0, "depth": 2, "hed": 1}[control_mode]
+            flux_kwargs["control_mode"] = {"canny": 0, "depth": 2, "hed": 1}[
+                control_mode
+            ]
             flux_kwargs["controlnet_conditioning_scale"] = controlnet_conditioning_scale
             flux_kwargs["width"], flux_kwargs["height"] = control_image_pil.size
 
