@@ -474,9 +474,6 @@ def clean_up():
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
 
-    if WEIGHTS_PATH.exists():
-        shutil.rmtree(WEIGHTS_PATH)
-
 
 def download_huggingface_lora(hf_lora_url: str, output_path: str):
     if (
