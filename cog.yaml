@@ -39,6 +39,7 @@ build:
     - "optimum-quanto==0.2.4"
     - "sentencepiece==0.2.0"
     - "peft==0.13.0"
+    - "lion-pytorch==0.2.2"
 
     # llava
     - "deepspeed==0.9.5"
