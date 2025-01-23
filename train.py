@@ -236,8 +236,9 @@ def train(
 
     if not gradient_checkpointing:
         if (
-            torch.cuda.get_device_properties(0).total_memory < 1024 * 1024 * 1024 * 100   # memory < 100 GB?
-        ):  
+            torch.cuda.get_device_properties(0).total_memory
+            < 1024 * 1024 * 1024 * 100  # memory < 100 GB?
+        ):
             print(
                 "Turning gradient checkpointing on and quantizing base model, GPU has less than 100 GB of memory"
             )
