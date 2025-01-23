@@ -162,7 +162,7 @@ def train(
         default=None,
     ),
     gradient_checkpointing: bool = Input(
-        descripton="Turn on gradient checkpointing; saves memory at the cost of training speed. Automatically enabled for batch sizes > 1.",
+        description="Turn on gradient checkpointing; saves memory at the cost of training speed. Automatically enabled for batch sizes > 1.",
         default=False
     ),
     hf_repo_id: str = Input(
