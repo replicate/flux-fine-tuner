@@ -235,13 +235,13 @@ def train(
         sample_prompts = [p.strip() for p in wandb_sample_prompts.split("\n")]
 
     if not gradient_checkpointing:
-        if batch_size > 1:
-            print("Turning gradient checkpointing on automatically for batch size > 1")
-            gradient_checkpointing = True
-        elif torch.cuda.get_device_properties(0).total_memory < 1024 * 1024 * 1024 * 100: # memory > 100 GB?
+        if torch.cuda.get_device_properties(0).total_memory < 1024 * 1024 * 1024 * 100: # memory > 100 GB?
             print("Turning gradient checkpointing on and quantizing base model, GPU has less than 100 GB of memory")
             gradient_checkpointing = True
             quantize = True
+        elif batch_size > 1:
+            print("Turning gradient checkpointing on automatically for batch size > 1")
+            gradient_checkpointing = True
         elif max(resolutions) > 1024:
             print("Turning gradient checkpointing on; training resolution greater than 1024x1024")
             gradient_checkpointing = True
