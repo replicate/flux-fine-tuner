@@ -228,6 +228,7 @@ def train(
                 + "\n".join(available_layers_to_optimize)
             )
     quantize = False
+    resolutions = [int(res) for res in resolution.split(",")]
 
     sample_prompts = []
     if wandb_sample_prompts:
@@ -241,6 +242,9 @@ def train(
             print("Turning gradient checkpointing on and quantizing base model, GPU has less than 100 GB of memory")
             gradient_checkpointing = True
             quantize = True
+        elif max(resolutions) > 1024:
+            print("Turning gradient checkpointing on; training resolution greater than 1024x1024")
+            gradient_checkpointing = True
 
     train_config = OrderedDict(
         {
@@ -274,9 +278,7 @@ def train(
                                 # TODO: Do we need to cache to disk? It's faster not to.
                                 "cache_latents_to_disk": cache_latents_to_disk,
                                 "cache_latents": True,
-                                "resolution": [
-                                    int(res) for res in resolution.split(",")
-                                ],
+                                "resolution": resolutions,
                             }
                         ],
                         "train": {
