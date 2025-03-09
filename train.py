@@ -23,7 +23,7 @@ import torch
 from cog import BaseModel, Input, Path, Secret  # pyright: ignore
 from extensions_built_in.sd_trainer.SDTrainer import SDTrainer
 from huggingface_hub import HfApi
-from jobs import BaseJob, ExtensionJob
+from jobs import BaseJob
 from toolkit.config import get_config
 
 from caption import Captioner
@@ -31,7 +31,7 @@ from wandb_client import WeightsAndBiasesClient, logout_wandb
 from layer_match import match_layers_to_optimize, available_layers_to_optimize
 
 
-JOB_NAME = "flux_train_replicate"
+JOB_NAME = "wan_train_replicate"
 WEIGHTS_PATH = Path("./FLUX.1-dev")
 INPUT_DIR = Path("input_images")
 OUTPUT_DIR = Path("output")
@@ -109,6 +109,11 @@ def train(
     trigger_word: str = Input(
         description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn't a real word, like TOK or something related to what's being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
         default=None,
+    ),
+    model: str = Input(
+        description="The model to use for training. Currently only supports 'wan21'",
+        choices=["1.3b", "14b"],
+        default="1.3b",
     ),
     autocaption: bool = Input(
         description="Automatically caption images using Llava v1.5 13B", default=True
@@ -211,11 +216,11 @@ def train(
     clean_up()
     output_path = "/tmp/trained_model.tar"
 
-    if skip_training_and_use_pretrained_hf_lora_url is not None:
-        download_huggingface_lora(
-            skip_training_and_use_pretrained_hf_lora_url, output_path
-        )
-        return TrainingOutput(weights=Path(output_path))
+    # if skip_training_and_use_pretrained_hf_lora_url is not None:
+    #     download_huggingface_lora(
+    #         skip_training_and_use_pretrained_hf_lora_url, output_path
+    #     )
+    #     return TrainingOutput(weights=Path(output_path))
     if not input_images:
         raise ValueError("input_images must be provided")
 
@@ -252,6 +257,8 @@ def train(
                 "Turning gradient checkpointing on; training resolution greater than 1024x1024"
             )
             gradient_checkpointing = True
+
+    repo_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers" if model == "1.3b" else "Wan-AI/Wan2.1-T2V-14B-Diffusers"
 
     train_config = OrderedDict(
         {
@@ -303,9 +310,9 @@ def train(
                             "dtype": "bf16",
                         },
                         "model": {
-                            "name_or_path": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+                            "name_or_path": repo_id,
                             "arch": "wan21",
-                            "quantize_te": True,
+                            # "quantize_te": True,
                         },
                         "sample": {
                             "sampler": "flowmatch",
@@ -376,7 +383,7 @@ def train(
     torch.cuda.empty_cache()
 
     print("Starting train job")
-    job = ExtensionJob(get_config(train_config, name=None))
+    job = CustomJob(get_config(train_config, name=None), wandb_client)
     job.run()
 
     if wandb_client:
