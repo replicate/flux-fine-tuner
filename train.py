@@ -23,7 +23,7 @@ import torch
 from cog import BaseModel, Input, Path, Secret  # pyright: ignore
 from extensions_built_in.sd_trainer.SDTrainer import SDTrainer
 from huggingface_hub import HfApi
-from jobs import BaseJob
+from jobs import BaseJob, ExtensionJob
 from toolkit.config import get_config
 
 from caption import Captioner
@@ -107,39 +107,39 @@ def train(
         default=None,
     ),
     trigger_word: str = Input(
-        description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn’t a real word, like TOK or something related to what’s being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
-        default="TOK",
+        description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn't a real word, like TOK or something related to what's being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
+        default=None,
     ),
     autocaption: bool = Input(
         description="Automatically caption images using Llava v1.5 13B", default=True
     ),
     autocaption_prefix: str = Input(
-        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
+        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, 'a photo of TOK, '. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
         default=None,
     ),
     autocaption_suffix: str = Input(
-        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use this suffix as context.",
+        description="Optional: Text you want to appear at the end of all your generated captions; for example, ' in the style of TOK'. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use this suffix as context.",
         default=None,
     ),
     steps: int = Input(
         description="Number of training steps. Recommended range 500-4000",
         ge=3,
         le=6000,
-        default=1000,
+        default=2000,
     ),
     learning_rate: float = Input(
-        description="Learning rate, if you’re new to training you probably don’t need to change this.",
-        default=4e-4,
+        description="Learning rate, if you're new to training you probably don't need to change this.",
+        default=1e-4,
     ),
     batch_size: int = Input(
         description="Batch size, you can leave this as 1", default=1
     ),
     resolution: str = Input(
-        description="Image resolutions for training", default="512,768,1024"
+        description="Image resolutions for training", default="632"
     ),
     lora_rank: int = Input(
         description="Higher ranks take longer to train but can capture more complex features. Caption quality is more important for higher ranks.",
-        default=16,
+        default=32,
         ge=1,
         le=128,
     ),
@@ -155,7 +155,7 @@ def train(
     ),
     cache_latents_to_disk: bool = Input(
         description="Use this if you have lots of input images and you hit out of memory errors",
-        default=False,
+        default=True,
     ),
     layers_to_optimize_regex: str = Input(
         description="Regular expression to match specific layers to optimize. Optimizing fewer layers results in shorter training times, but can also result in a weaker LoRA. For example, To target layers 7, 12, 16, 20 which seems to create good likeness with faster training (as discovered by lux in the Ostris discord, inspired by The Last Ben), use `transformer.single_transformer_blocks.(7|12|16|20).proj_out`.",
@@ -163,7 +163,7 @@ def train(
     ),
     gradient_checkpointing: bool = Input(
         description="Turn on gradient checkpointing; saves memory at the cost of training speed. Automatically enabled for batch sizes > 1.",
-        default=False,
+        default=True,
     ),
     hf_repo_id: str = Input(
         description="Hugging Face repository ID, if you'd like to upload the trained LoRA to Hugging Face. For example, lucataco/flux-dev-lora. If the given repo does not exist, a new public repo will be created.",
@@ -191,20 +191,20 @@ def train(
     ),
     wandb_sample_interval: int = Input(
         description="Step interval for sampling output images that are logged to W&B. Only applicable if wandb_api_key is set.",
-        default=100,
+        default=250,
         ge=1,
     ),
     wandb_sample_prompts: str = Input(
         description="Newline-separated list of prompts to use when logging samples to W&B. Only applicable if wandb_api_key is set.",
-        default=None,
+        default="woman playing the guitar, on stage, singing a song, laser lights, punk rocker",
     ),
     wandb_save_interval: int = Input(
         description="Step interval for saving intermediate LoRA weights to W&B. Only applicable if wandb_api_key is set.",
-        default=100,
+        default=250,
         ge=1,
     ),
     skip_training_and_use_pretrained_hf_lora_url: str = Input(
-        description="If you’d like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that’s on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
+        description="If you'd like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that's on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
         default=None,
     ),
 ) -> TrainingOutput:
@@ -255,12 +255,12 @@ def train(
 
     train_config = OrderedDict(
         {
-            "job": "custom_job",
+            "job": "extension",
             "config": {
                 "name": JOB_NAME,
                 "process": [
                     {
-                        "type": "custom_sd_trainer",
+                        "type": "sd_trainer",
                         "training_folder": str(OUTPUT_DIR),
                         "device": "cuda:0",
                         "trigger_word": trigger_word,
@@ -282,7 +282,6 @@ def train(
                                 "caption_ext": "txt",
                                 "caption_dropout_rate": caption_dropout_rate,
                                 "shuffle_tokens": False,
-                                # TODO: Do we need to cache to disk? It's faster not to.
                                 "cache_latents_to_disk": cache_latents_to_disk,
                                 "cache_latents": True,
                                 "resolution": resolutions,
@@ -294,18 +293,19 @@ def train(
                             "gradient_accumulation_steps": 1,
                             "train_unet": True,
                             "train_text_encoder": False,
-                            "content_or_style": "balanced",
                             "gradient_checkpointing": gradient_checkpointing,
                             "noise_scheduler": "flowmatch",
+                            "timestep_type": "sigmoid",
                             "optimizer": optimizer,
                             "lr": learning_rate,
+                            "optimizer_params": {"weight_decay": 1e-4},
                             "ema_config": {"use_ema": True, "ema_decay": 0.99},
                             "dtype": "bf16",
                         },
                         "model": {
-                            "name_or_path": str(WEIGHTS_PATH),
-                            "is_flux": True,
-                            "quantize": quantize,
+                            "name_or_path": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+                            "arch": "wan21",
+                            "quantize_te": True,
                         },
                         "sample": {
                             "sampler": "flowmatch",
@@ -314,14 +314,16 @@ def train(
                                 if wandb_api_key and sample_prompts
                                 else steps + 1
                             ),
-                            "width": 1024,
-                            "height": 1024,
+                            "width": 832,
+                            "height": 480,
+                            "num_frames": 40,
+                            "fps": 15,
                             "prompts": sample_prompts,
                             "neg": "",
                             "seed": 42,
                             "walk_seed": True,
-                            "guidance_scale": 3.5,
-                            "sample_steps": 28,
+                            "guidance_scale": 5,
+                            "sample_steps": 30,
                         },
                     }
                 ],
@@ -359,7 +361,7 @@ def train(
             name=wandb_run,
         )
 
-    download_weights()
+    # download_weights()
     extract_zip(input_images, INPUT_DIR)
 
     if not trigger_word:
@@ -374,7 +376,7 @@ def train(
     torch.cuda.empty_cache()
 
     print("Starting train job")
-    job = CustomJob(get_config(train_config, name=None), wandb_client)
+    job = ExtensionJob(get_config(train_config, name=None))
     job.run()
 
     if wandb_client:
