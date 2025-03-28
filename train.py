@@ -18,6 +18,7 @@ import sys
 import time
 from typing import Optional, OrderedDict
 from zipfile import ZipFile, is_zipfile
+from string import Template
 
 import torch
 from cog import BaseModel, Input, Path, Secret  # pyright: ignore
@@ -107,18 +108,18 @@ def train(
         default=None,
     ),
     trigger_word: str = Input(
-        description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn’t a real word, like TOK or something related to what’s being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
+        description="The trigger word refers to the object, style or concept you are training on. Pick a string that isn't a real word, like TOK or something related to what's being trained, like CYBRPNK. The trigger word you specify here will be associated with all images during training. Then when you use your LoRA, you can include the trigger word in prompts to help activate the LoRA.",
         default="TOK",
     ),
     autocaption: bool = Input(
         description="Automatically caption images using Llava v1.5 13B", default=True
     ),
     autocaption_prefix: str = Input(
-        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
+        description="Optional: Text you want to appear at the beginning of all your generated captions; for example, 'a photo of TOK, '. You can include your trigger word in the prefix. Prefixes help set the right context for your captions, and the captioner will use this prefix as context.",
         default=None,
     ),
     autocaption_suffix: str = Input(
-        description="Optional: Text you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use this suffix as context.",
+        description="Optional: Text you want to appear at the end of all your generated captions; for example, ' in the style of TOK'. You can include your trigger word in suffixes. Suffixes help set the right concept for your captions, and the captioner will use this suffix as context.",
         default=None,
     ),
     steps: int = Input(
@@ -128,7 +129,7 @@ def train(
         default=1000,
     ),
     learning_rate: float = Input(
-        description="Learning rate, if you’re new to training you probably don’t need to change this.",
+        description="Learning rate, if you're new to training you probably don't need to change this.",
         default=4e-4,
     ),
     batch_size: int = Input(
@@ -203,8 +204,8 @@ def train(
         default=100,
         ge=1,
     ),
-    skip_training_and_use_pretrained_hf_lora_url: str = Input(
-        description="If you’d like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that’s on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
+    skip_training_and_use_pretrained_hf_lora_url: Optional[str] = Input(
+        description="If you'd like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that's on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
         default=None,
     ),
 ) -> TrainingOutput:
@@ -414,7 +415,7 @@ def train(
             shutil.rmtree(captions_dir)
 
         try:
-            handle_hf_readme(hf_repo_id, trigger_word)
+            handle_hf_readme(hf_repo_id, trigger_word, steps, learning_rate, lora_rank)
             print(f"Uploading to Hugging Face: {hf_repo_id}")
             api = HfApi()
 
@@ -439,36 +440,25 @@ def train(
     return TrainingOutput(weights=Path(output_path))
 
 
-def handle_hf_readme(hf_repo_id: str, trigger_word: Optional[str]):
+def handle_hf_readme(hf_repo_id: str, trigger_word: Optional[str], steps: int, learning_rate: float, lora_rank: int):
     readme_path = JOB_DIR / "README.md"
-    license_path = Path("lora-license.md")
-    shutil.copy(license_path, readme_path)
+    readme_template_path = Path("hugging-face-readme-template.md")
+    shutil.copy(readme_template_path, readme_path)
 
-    content = readme_path.read_text()
-    content = content.replace("[hf_repo_id]", hf_repo_id)
+    with readme_template_path.open() as file:
+        template = file.read()
 
-    repo_parts = hf_repo_id.split("/")
-    if len(repo_parts) > 1:
-        title = repo_parts[1].replace("-", " ").title()
-        content = content.replace("[title]", title)
-    else:
-        content = content.replace("[title]", hf_repo_id)
+    variables = {
+        "repo_id": hf_repo_id,
+        "title": hf_repo_id.split("/")[1].replace("-", " ").title() if len(hf_repo_id.split("/")) > 1 else hf_repo_id,
+        "trigger_word": trigger_word,
+        "trigger_section": f"\n## Trigger words\n\nYou should use `{trigger_word}` to trigger the image generation.\n" if trigger_word else "",
+        "instance_prompt": f"instance_prompt: {trigger_word}" if trigger_word else "",
+        "training_details": f"\n## Training details\n\n- Steps: {steps}\n- Learning rate: {learning_rate}\n- LoRA rank: {lora_rank}\n",
+    }
 
-    if trigger_word:
-        content = content.replace(
-            "[trigger_section]",
-            f"\n## Trigger words\nYou should use `{trigger_word}` to trigger the image generation.\n",
-        )
-        content = content.replace(
-            "[instance_prompt]", f"instance_prompt: {trigger_word}"
-        )
-    else:
-        content = content.replace("[trigger_section]", "")
-        content = content.replace("[instance_prompt]", "")
-
-    print(content)
-
-    readme_path.write_text(content)
+    with readme_path.open("w") as file:
+        file.write(Template(template).substitute(variables))
 
 
 def extract_zip(input_images: Path, input_dir: Path):
