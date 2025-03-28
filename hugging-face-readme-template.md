@@ -38,7 +38,7 @@ import replicate
 
 input = {
     "prompt": "$trigger_word",
-    "lora_url": "https://huggingface.co/$repo_id/resolve/main/lora.safetensors"
+    "lora_weights": "https://huggingface.co/$repo_id/resolve/main/lora.safetensors"
 }
 
 output = replicate.run(
