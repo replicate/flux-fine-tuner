@@ -25,9 +25,7 @@ $instance_prompt
 
 ## About this LoRA
 
-This is a [LoRA](https://replicate.com/docs/guides/working-with-loras) for the FLUX.1-dev text-to-image model.
-
-It can be used with diffusers or ComfyUI, and can be loaded against both the text-to-video and image-to-video Wan2.1 models.
+This is a [LoRA](https://replicate.com/docs/guides/working-with-loras) for the FLUX.1-dev text-to-image model. It can be used with diffusers or ComfyUI.
 
 It was trained on [Replicate](https://replicate.com/) using AI toolkit: https://replicate.com/ostris/flux-dev-lora-trainer/train
 
@@ -60,7 +58,7 @@ import torch
 
 pipeline = AutoPipelineForText2Image.from_pretrained('black-forest-labs/FLUX.1-dev', torch_dtype=torch.float16).to('cuda')
 pipeline.load_lora_weights('$repo_id', weight_name='lora.safetensors')
-image = pipeline('your prompt').images[0]
+image = pipeline('$trigger_word').images[0]
 ```
 
 For more details, including weighting, merging and fusing LoRAs, check the [documentation on loading LoRAs in diffusers](https://huggingface.co/docs/diffusers/main/en/using-diffusers/loading_adapters)
