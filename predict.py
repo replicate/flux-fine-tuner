@@ -83,7 +83,7 @@ class Predictor(BasePredictor):
             SAFETY_CACHE_PATH, torch_dtype=torch.float16
         ).to("cuda")  # pyright: ignore
         self.feature_extractor = cast(
-            CLIPImageProcessor, CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR)
+            "CLIPImageProcessor", CLIPImageProcessor.from_pretrained(FEATURE_EXTRACTOR)
         )
 
         print("Loading Falcon safety checker...")
