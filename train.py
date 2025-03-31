@@ -440,7 +440,13 @@ def train(
     return TrainingOutput(weights=Path(output_path))
 
 
-def handle_hf_readme(hf_repo_id: str, trigger_word: Optional[str], steps: int, learning_rate: float, lora_rank: int):
+def handle_hf_readme(
+    hf_repo_id: str,
+    trigger_word: Optional[str],
+    steps: int,
+    learning_rate: float,
+    lora_rank: int,
+):
     readme_path = JOB_DIR / "README.md"
     readme_template_path = Path("hugging-face-readme-template.md")
     shutil.copy(readme_template_path, readme_path)
@@ -450,9 +456,13 @@ def handle_hf_readme(hf_repo_id: str, trigger_word: Optional[str], steps: int, l
 
     variables = {
         "repo_id": hf_repo_id,
-        "title": hf_repo_id.split("/")[1].replace("-", " ").title() if len(hf_repo_id.split("/")) > 1 else hf_repo_id,
+        "title": hf_repo_id.split("/")[1].replace("-", " ").title()
+        if len(hf_repo_id.split("/")) > 1
+        else hf_repo_id,
         "trigger_word": trigger_word,
-        "trigger_section": f"\n## Trigger words\n\nYou should use `{trigger_word}` to trigger the image generation.\n" if trigger_word else "",
+        "trigger_section": f"\n## Trigger words\n\nYou should use `{trigger_word}` to trigger the image generation.\n"
+        if trigger_word
+        else "",
         "instance_prompt": f"instance_prompt: {trigger_word}" if trigger_word else "",
         "training_details": f"\n## Training details\n\n- Steps: {steps}\n- Learning rate: {learning_rate}\n- LoRA rank: {lora_rank}\n",
     }
