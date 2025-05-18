@@ -186,4 +186,10 @@ class Captioner:
 
             print(f"Caption for {image_path}: {output}")
 
+            # llava doesn't always add the prefix or suffix to the caption
+            if autocaption_prefix and not output.startswith(autocaption_prefix):
+                output = autocaption_prefix + output
+            if autocaption_suffix and not output.endswith(autocaption_suffix):
+                output = output + autocaption_suffix
+
             caption_path.write_text(output)
