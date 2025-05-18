@@ -17,7 +17,7 @@ class Predictor(BasePredictor):
                     default=None,
                 ),
                 autocaption_prefix: str = Input(description="text that you want to appear at the beginning of all your generated captions; for example, ‘a photo of TOK, ’. You can include your trigger word in the prefix.", default=None), 
-                autocaption_suffix: str = Input(description="text that you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes.", default=None)    ) -> str:
+                autocaption_suffix: str = Input(description="text that you want to appear at the end of all your generated captions; for example, ‘ in the style of TOK’. You can include your trigger word in suffixes.", default=None)    ) -> Path:
         input_dir = Path("./input_imgs")
         # deletes the input_dir if it exists
         if os.path.exists(input_dir):
@@ -49,5 +49,5 @@ class Predictor(BasePredictor):
                 if file.endswith(".txt"):
                     zipf.write(os.path.join(output_dir, file), file)
 
-        return output_zip
+        return Path(output_zip)
         
