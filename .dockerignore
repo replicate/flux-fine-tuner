@@ -25,3 +25,5 @@ output
 input_images
 falcon-cache
 safety-cache
+
+cog-safe-push.*
