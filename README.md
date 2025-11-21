@@ -12,7 +12,8 @@ It also includes code for running inference with a fine-tuned model.
 - Image generation using the LoRA (inference)
 - Optionally uploads fine-tuned weights to Hugging Face after training
 - Automated test suite with [cog-safe-push](https://github.com/replicate/cog-safe-push) for continuous deployment
-- Weights and biases integration
+- Weights and Biases integration
+- MLflow experiment tracking integration (see [MLFLOW_INTEGRATION.md](MLFLOW_INTEGRATION.md))
 
 ## Getting Started
 
