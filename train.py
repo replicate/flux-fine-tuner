@@ -29,6 +29,7 @@ from toolkit.config import get_config
 
 from caption import Captioner
 from wandb_client import WeightsAndBiasesClient, logout_wandb
+from mlflow_client import MLflowClient
 from layer_match import match_layers_to_optimize, available_layers_to_optimize
 
 
@@ -48,11 +49,14 @@ class CustomSDTrainer(SDTrainer):
         super().__init__(*args, **kwargs)
         self.seen_samples = set()
         self.wandb: WeightsAndBiasesClient | None = None
+        self.mlflow: MLflowClient | None = None
 
     def hook_train_loop(self, batch):
         loss_dict = super().hook_train_loop(batch)
         if self.wandb:
             self.wandb.log_loss(loss_dict, self.step_num)
+        if self.mlflow:
+            self.mlflow.log_loss(loss_dict, self.step_num)
         return loss_dict
 
     def sample(self, step=None, is_first=False):
@@ -63,6 +67,9 @@ class CustomSDTrainer(SDTrainer):
         if self.wandb:
             image_paths = [output_dir / p for p in sorted(new_samples)]
             self.wandb.log_samples(image_paths, step)
+        if self.mlflow:
+            image_paths = [output_dir / p for p in sorted(new_samples)]
+            self.mlflow.log_samples(image_paths, step)
         self.seen_samples = all_samples
 
     def post_save_hook(self, save_path):
@@ -75,11 +82,17 @@ class CustomSDTrainer(SDTrainer):
         if self.wandb:
             print(f"Saving weights to W&B: {lora_path.name}")
             self.wandb.save_weights(lora_path)
+        if self.mlflow:
+            print(f"Saving weights to MLflow: {lora_path.name}")
+            self.mlflow.save_weights(lora_path)
 
 
 class CustomJob(BaseJob):
     def __init__(
-        self, config: OrderedDict, wandb_client: WeightsAndBiasesClient | None
+        self,
+        config: OrderedDict,
+        wandb_client: WeightsAndBiasesClient | None,
+        mlflow_client: MLflowClient | None = None,
     ):
         super().__init__(config)
         self.device = self.get_conf("device", "cpu")
@@ -87,6 +100,7 @@ class CustomJob(BaseJob):
         self.load_processes(self.process_dict)
         for process in self.process:
             process.wandb = wandb_client
+            process.mlflow = mlflow_client
 
     def run(self):
         super().run()
@@ -203,6 +217,18 @@ def train(
         description="Step interval for saving intermediate LoRA weights to W&B. Only applicable if wandb_api_key is set.",
         default=100,
         ge=1,
+    ),
+    mlflow_tracking_uri: str = Input(
+        description="MLflow tracking server URI, if you'd like to log training progress to MLflow. For example, 'http://localhost:5000' or 'https://your-mlflow-server.com'.",
+        default=None,
+    ),
+    mlflow_experiment_name: str = Input(
+        description="MLflow experiment name. Only applicable if mlflow_tracking_uri is set.",
+        default="flux-lora-training",
+    ),
+    mlflow_run_name: str = Input(
+        description="MLflow run name. Only applicable if mlflow_tracking_uri is set.",
+        default=None,
     ),
     skip_training_and_use_pretrained_hf_lora_url: Optional[str] = Input(
         description="If you'd like to skip LoRA training altogether and instead create a Replicate model from a pre-trained LoRA that's on HuggingFace, use this field with a HuggingFace download URL. For example, https://huggingface.co/fofr/flux-80s-cyberpunk/resolve/main/lora.safetensors.",
@@ -336,28 +362,44 @@ def train(
             "only_if_contains": layers_to_optimize
         }
 
+    # Initialize tracking clients
     wandb_client = None
+    mlflow_client = None
+
+    # Config dict for both tracking systems
+    tracking_config = {
+        "trigger_word": trigger_word,
+        "autocaption": autocaption,
+        "autocaption_prefix": autocaption_prefix,
+        "autocaption_suffix": autocaption_suffix,
+        "steps": steps,
+        "learning_rate": learning_rate,
+        "batch_size": batch_size,
+        "resolution": resolution,
+        "lora_rank": lora_rank,
+        "caption_dropout_rate": caption_dropout_rate,
+        "optimizer": optimizer,
+        "gradient_checkpointing": gradient_checkpointing,
+        "cache_latents_to_disk": cache_latents_to_disk,
+    }
+
     if wandb_api_key:
-        wandb_config = {
-            "trigger_word": trigger_word,
-            "autocaption": autocaption,
-            "autocaption_prefix": autocaption_prefix,
-            "autocaption_suffix": autocaption_suffix,
-            "steps": steps,
-            "learning_rate": learning_rate,
-            "batch_size": batch_size,
-            "resolution": resolution,
-            "lora_rank": lora_rank,
-            "caption_dropout_rate": caption_dropout_rate,
-            "optimizer": optimizer,
-        }
         wandb_client = WeightsAndBiasesClient(
             api_key=wandb_api_key.get_secret_value(),
-            config=wandb_config,
+            config=tracking_config,
             sample_prompts=sample_prompts,
             project=wandb_project,
             entity=wandb_entity,
             name=wandb_run,
+        )
+
+    if mlflow_tracking_uri:
+        mlflow_client = MLflowClient(
+            tracking_uri=mlflow_tracking_uri,
+            experiment_name=mlflow_experiment_name,
+            run_name=mlflow_run_name,
+            config=tracking_config,
+            sample_prompts=sample_prompts,
         )
 
     download_weights()
@@ -375,11 +417,14 @@ def train(
     torch.cuda.empty_cache()
 
     print("Starting train job")
-    job = CustomJob(get_config(train_config, name=None), wandb_client)
+    job = CustomJob(get_config(train_config, name=None), wandb_client, mlflow_client)
     job.run()
 
     if wandb_client:
         wandb_client.finish()
+
+    if mlflow_client:
+        mlflow_client.finish()
 
     job.cleanup()
 

@@ -54,6 +54,7 @@ build:
     - "wandb==0.17.8"
     - "wavedrom==2.0.3.post3"
     - "Pygments==2.16.1"
+    - "mlflow==2.18.0"
   run:
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.8.2/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
     - pip install "git+https://github.com/Gothos/diffusers.git@flux-inpaint"
