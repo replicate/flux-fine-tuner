@@ -70,9 +70,7 @@ class MLflowClient:
         """
         try:
             # Log each image with its corresponding prompt
-            for prompt, path in zip(self.sample_prompts, image_paths):
-                # Create a sanitized artifact name
-                artifact_name = f"sample_step_{step}_{truncate(prompt, 30)}.jpg"
+            for path in image_paths:
                 mlflow.log_artifact(str(path), artifact_path=f"samples/step_{step}")
         except Exception as e:
             print(f"Failed to log samples to MLflow: {e}")
